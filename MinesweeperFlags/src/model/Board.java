@@ -31,7 +31,7 @@ public class Board extends Observable {
 	private boolean myGameOver;
 	
 	/** The total number of mines in the current board. */
-	private int myMineNumber;
+	private int myMineTotal;
 
 	/** The height of this board. */
 	private int myHeight;
@@ -60,7 +60,7 @@ public class Board extends Observable {
 	public Board(final int theWidth, final int theHeight, final int theTotalMines) {
 		myWidth = theWidth;
 		myHeight = theHeight;
-		myMineNumber = theTotalMines;
+		myMineTotal = theTotalMines;
 		myMinesFound = 0;
 		myGameOver = false;
 		
@@ -99,7 +99,7 @@ public class Board extends Observable {
 	 * @return int of the number of mines within the board.
 	 */
 	public int getMineNumber() {
-		return myMineNumber;
+		return myMineTotal;
 	}
 
 	/**
@@ -108,7 +108,7 @@ public class Board extends Observable {
 	 * @param theMineNumber The desired number of mines within the board.
 	 */
 	public void setMineNumber(final int theMineNumber) {
-		myMineNumber = theMineNumber;
+		myMineTotal = theMineNumber;
 	}
 
 	/**
@@ -148,12 +148,12 @@ public class Board extends Observable {
 	}
 	
 	/**
-	 * Getter method for the number of mines found in the current game.
+	 * Getter method for the number of mines left in the current game.
 	 * 
 	 * @return the number of mines found.
 	 */
-	public int getMinesFound() {
-		return myMinesFound;
+	public int getMinesLeft() {
+		return myMineTotal - myMinesFound;
 	}
 	
 	/**
@@ -165,16 +165,24 @@ public class Board extends Observable {
 	 * @param theColumn The column of the cell.
 	 */
 	public void selectCell(final int theRow, final int theColumn) {
-		myBoard[theRow][theColumn].setSelected();
-		setChanged();
-		notifyObservers(getCell(theRow, theColumn));
-		
-		if (myBoard[theRow][theColumn].isBlank()) {
-			blankSelected(theRow, theColumn);
-		}
-		
-		if (myBoard[theRow][theColumn].isMine()) {
-			myMinesFound++;
+		if (!myGameOver) {
+			myBoard[theRow][theColumn].setSelected();
+			setChanged();
+			notifyObservers(getCell(theRow, theColumn));
+
+			if (myBoard[theRow][theColumn].isBlank()) {
+				blankSelected(theRow, theColumn);
+			}
+
+			if (myBoard[theRow][theColumn].isMine()) {
+				myMinesFound++;
+				//All mines have been found, game is now over
+				if (myMinesFound == myMineTotal) {
+					myGameOver = true;
+					setChanged();
+					notifyObservers();
+				}
+			}
 		}
 	}
 	
@@ -187,7 +195,7 @@ public class Board extends Observable {
 	 */
 	private void populateBoard() {
 		Random r = new Random();
-		int minesToPlace = myMineNumber;
+		int minesToPlace = myMineTotal;
 		
 		while (minesToPlace > 0) {
 			int column = r.nextInt(myWidth);
@@ -320,13 +328,6 @@ public class Board extends Observable {
 			for (int j = 0; j < myWidth; j++) {		
 				sb.append(myBoard[i][j]);
 				sb.append(" ");
-				
-//				if (myBoard[i][j].isSelected()) {
-//					sb.append(myBoard[i][j]);
-//					sb.append(" ");
-//				} else {
-//					sb.append("  ");
-//				}
 			}		
 			sb.append("\n");
 		}	
@@ -334,31 +335,3 @@ public class Board extends Observable {
 		return sb.toString();
 	}
 }
-//	
-//	/**
-//	 * Main method for initial testing purposes.
-//	 * 
-//	 * @param args Command-line arguments.
-//	 */
-//	public static void main(String[] args) {
-//		Board b = new Board();
-//		Scanner in = new Scanner(System.in);
-//		int row = 0;
-//		int column = 0;
-//		
-//		System.err.println(b);
-//		
-////		while (row != -1 && column != -1) {
-////			System.err.println(b);
-////			System.out.print("Enter a row: ");
-////			row = in.nextInt();
-////			System.out.println();
-////			System.out.print("Enter a column: ");
-////			column = in.nextInt();
-////			System.out.println();
-////			b.selectCell(row, column);
-////		}
-//		
-//		in.close();
-//	
-//	}

@@ -17,12 +17,26 @@ import javax.swing.JToggleButton;
 import model.Board;
 import model.Cell;
 
+/**
+ * The GUI representation of a Minesweeper Flags game. 
+ * 
+ * @author Erik Tedder
+ * @version 10/27/2014
+ */
 @SuppressWarnings("serial")
 public class SweeperFrame extends JFrame implements Observer {
 	
+	/** The Board representing the current game. */
 	private final Board myBoard;
+	/** The arrangement of JToggleButtons that make up the various cells within the game. */
 	private JToggleButton[][] myCells;
 	
+	/**
+	 * Single Argument constructor of a new SweeperFrame. Constructor requires a Board to be 
+	 * able to create the desired layout of the Minesweeper Flag game.
+	 * 
+	 * @param theBoard The board to be displayed.
+	 */
 	public SweeperFrame(final Board theBoard) {
 		super();
 		
@@ -38,6 +52,10 @@ public class SweeperFrame extends JFrame implements Observer {
 		setVisible(true);
 	}
 
+	/**
+	 * Method to construct the overall frame of the GUI and populates the frame with the 
+	 * desired number of cells.
+	 */
 	private void constructFrame() {
 		JPanel gamePanel = new JPanel();	
 		gamePanel.setLayout(new BoxLayout(gamePanel, BoxLayout.Y_AXIS));
@@ -54,6 +72,14 @@ public class SweeperFrame extends JFrame implements Observer {
 		add(gamePanel);
 	}
 	
+	/**
+	 * Method which creates all the Cells within the GUI for the user's interaction. Each cell 
+	 * is made of a JToggleButton and notifies the board when a cell has been selected.
+	 * 
+	 * @param theRow The row value for the current Cell.
+	 * @param theColumn The column for the current Cell.
+	 * @return The JToggleButton representing the required cell.
+	 */
 	private JToggleButton createCell(final int theRow, final int theColumn) {
 		final JToggleButton button = new JToggleButton();
 		button.setText(" ");
@@ -63,6 +89,7 @@ public class SweeperFrame extends JFrame implements Observer {
 		button.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY));
 		button.setForeground(Color.WHITE);
 		
+		//Action for when the cell has been selected
 		button.addActionListener(new ActionListener() {			
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -73,20 +100,29 @@ public class SweeperFrame extends JFrame implements Observer {
 		return button;
 	}
 	
+	 /**
+	  * Main method for starting the SweeperFrame GUI and setting of the current board size.
+	  * @param the_args
+	  */
 	 public static void main(final String... the_args) {
 
 	        EventQueue.invokeLater(new Runnable() {
 	            @Override
 	            public void run() {
-	                new SweeperFrame(new Board(20, 20, 100)); // create the graphical user interface
+	                new SweeperFrame(new Board(10, 10, 20)); //create the GUI
 	            }
 	        });
 	    }
 
+	 /**
+	  * Updates the Minesweeper Flags game board to reflect the actions within of the board
+	  * model.
+	  */
 	@Override
-	public void update(Observable arg0, Object arg1) {
-		if (arg1 instanceof Cell) {
-			Cell c = (Cell)arg1;
+	public void update(final Observable theObserable, final Object theArgument) {
+		//Argument is a Cell. A cell has been selected and must be visually represented.
+		if (theArgument instanceof Cell) {
+			Cell c = (Cell)theArgument;
 			int row = (int)c.getLocation().getX();
 			int column = (int)c.getLocation().getY();
 			myCells[row][column].setText(myBoard.getCell(row, column).toString());
