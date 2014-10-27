@@ -2,6 +2,7 @@ package model;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Observable;
 import java.util.Random;
 
 /**
@@ -12,7 +13,7 @@ import java.util.Random;
  * @author Erik Tedder
  * @version 1 (6/15/2014)
  */
-public class Board {
+public class Board extends Observable {
 	
 	/** Default board width. */
 	private static final int DEFAULT_WIDTH = 10;
@@ -165,6 +166,8 @@ public class Board {
 	 */
 	public void selectCell(final int theRow, final int theColumn) {
 		myBoard[theRow][theColumn].setSelected();
+		setChanged();
+		notifyObservers(getCell(theRow, theColumn));
 		
 		if (myBoard[theRow][theColumn].isBlank()) {
 			blankSelected(theRow, theColumn);
@@ -210,7 +213,8 @@ public class Board {
 		ArrayList<Cell> neighbors = (ArrayList<Cell>)getNeighbors(theRow, theColumn);
 		
 		for (Cell c : neighbors) {
-			selectCell((int)c.getLocation().getX(), (int)c.getLocation().getY());		
+			if (!c.isSelected())
+				selectCell((int)c.getLocation().getX(), (int)c.getLocation().getY());		
 		}
 	}
 	
