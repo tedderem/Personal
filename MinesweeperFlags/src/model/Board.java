@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Observable;
 import java.util.Random;
 
+import control.BoardEvents;
+
 /**
  * Class which represents the board of the Minesweeper game. Makes up rows and columns of Cells
  * which contain a number representation of how many nearby mines there are, or whether the 
@@ -180,7 +182,7 @@ public class Board extends Observable {
 				if (myMinesFound == myMineTotal) {
 					myGameOver = true;
 					setChanged();
-					notifyObservers();
+					notifyObservers(BoardEvents.GAME_OVER);
 				}
 			}
 		}

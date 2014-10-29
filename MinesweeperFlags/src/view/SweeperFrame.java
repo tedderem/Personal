@@ -11,9 +11,11 @@ import java.util.Observer;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JToggleButton;
 
+import control.BoardEvents;
 import model.Board;
 import model.Cell;
 
@@ -93,7 +95,8 @@ public class SweeperFrame extends JFrame implements Observer {
 		button.addActionListener(new ActionListener() {			
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				myBoard.selectCell(theRow, theColumn);
+				if (!myBoard.isGameOver()) 
+					myBoard.selectCell(theRow, theColumn);
 			}
 		});
 		
@@ -109,7 +112,7 @@ public class SweeperFrame extends JFrame implements Observer {
 	        EventQueue.invokeLater(new Runnable() {
 	            @Override
 	            public void run() {
-	                new SweeperFrame(new Board(10, 10, 20)); //create the GUI
+	                new SweeperFrame(new Board(20, 20, 20)); //create the GUI
 	            }
 	        });
 	    }
@@ -128,6 +131,15 @@ public class SweeperFrame extends JFrame implements Observer {
 			myCells[row][column].setText(myBoard.getCell(row, column).toString());
 			myCells[row][column].setSelected(true);
 			myCells[row][column].setEnabled(false);
+		}
+		
+		if (theArgument == BoardEvents.GAME_OVER) {
+			JOptionPane.showMessageDialog(this, "GAME OVER");
+			for (JToggleButton[] row : myCells) {
+				for (JToggleButton b : row) {
+					b.setEnabled(false);
+				}
+			}
 		}
 
 	}
