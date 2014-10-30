@@ -1,6 +1,6 @@
 package control;
 
 public enum BoardEvents {
-	GAME_OVER;
-
+	GAME_OVER,
+	MINE_FOUND;
 }

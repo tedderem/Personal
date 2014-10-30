@@ -1,6 +1,8 @@
 package view;
 
+import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.EventQueue;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
@@ -11,6 +13,7 @@ import java.util.Observer;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JToggleButton;
@@ -32,6 +35,8 @@ public class SweeperFrame extends JFrame implements Observer {
 	private final Board myBoard;
 	/** The arrangement of JToggleButtons that make up the various cells within the game. */
 	private JToggleButton[][] myCells;
+	/** A label that displays the number of mines remaining. */
+	private JLabel myMinesLeft;
 	
 	/**
 	 * Single Argument constructor of a new SweeperFrame. Constructor requires a Board to be 
@@ -41,9 +46,12 @@ public class SweeperFrame extends JFrame implements Observer {
 	 */
 	public SweeperFrame(final Board theBoard) {
 		super();
+		setPreferredSize(new Dimension(500, 500));
+		setMinimumSize(new Dimension(340, 340));
 		
 		myBoard = theBoard;
 		myCells = new JToggleButton[myBoard.getWidth()][myBoard.getHeight()];
+		myMinesLeft = new JLabel("Mines Left: " + myBoard.getMinesLeft());
 		myBoard.addObserver(this);
 		
 		constructFrame();
@@ -59,6 +67,10 @@ public class SweeperFrame extends JFrame implements Observer {
 	 * desired number of cells.
 	 */
 	private void constructFrame() {
+		JPanel scorePanel = new JPanel();
+		scorePanel.add(myMinesLeft);
+		add(scorePanel, BorderLayout.NORTH);		
+		
 		JPanel gamePanel = new JPanel();	
 		gamePanel.setLayout(new BoxLayout(gamePanel, BoxLayout.Y_AXIS));
 		
@@ -140,6 +152,10 @@ public class SweeperFrame extends JFrame implements Observer {
 					b.setEnabled(false);
 				}
 			}
+		}
+		
+		if (theArgument == BoardEvents.MINE_FOUND) {
+			myMinesLeft.setText("Mines Left: " + myBoard.getMinesLeft());
 		}
 
 	}

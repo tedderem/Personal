@@ -178,6 +178,8 @@ public class Board extends Observable {
 
 			if (myBoard[theRow][theColumn].isMine()) {
 				myMinesFound++;
+				setChanged();
+				notifyObservers(BoardEvents.MINE_FOUND);
 				//All mines have been found, game is now over
 				if (myMinesFound == myMineTotal) {
 					myGameOver = true;
