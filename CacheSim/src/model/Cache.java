@@ -1,5 +1,10 @@
 package model;
 
+/**
+ * 
+ * @author Erik
+ *
+ */
 public class Cache {
 
 	int myCacheSize;
@@ -14,6 +19,7 @@ public class Cache {
 
 	
 	public class CacheEntry {
+		char myMESIState;
 		int myTag;
 		
 		public CacheEntry() {
