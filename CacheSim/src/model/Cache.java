@@ -15,8 +15,6 @@ public class Cache {
 		myCacheSize = theCacheSize;
 		myLatency = theLatency;
 		myEntries = new CacheEntry[theCacheSize];
-		
-		Integer.
 	}
 
 	
