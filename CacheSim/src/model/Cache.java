@@ -10,13 +10,13 @@ package model;
 public class Cache {
 
 	/** Size of the Cache. */
-	int cacheSize;
+	protected int cacheSize;
 	/** Latency/Penalty for misses. */
-	int latency;
+	protected int latency;
 	/** The number of ways for associative entry. */
-	int numOfWays;
+	protected int numOfWays;
 	/** Stored values. */
-	CacheEntry[] entries;
+	protected CacheEntry[] entries;
 	
 	public Cache(final int theCacheSize, final int theLatency, final int theNumOfWays) {
 		numOfWays = theNumOfWays;
