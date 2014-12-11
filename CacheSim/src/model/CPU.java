@@ -9,8 +9,10 @@ import java.util.ArrayList;
  */
 public class CPU {
 	
-	/** The first level cache. */
-	private Cache L1;
+	/** The first level cache for instruction. */
+	private Cache L1i;
+	/** The first level cache for data. */
+	private Cache L1d;
 	/** The second level cache. */
 	private Cache L2;
 	/** The memory trace. */
@@ -29,7 +31,8 @@ public class CPU {
 			final int theL1Latency, final int theL2Size, final int theL2Latency, 
 			final int theNumOfWays) {
 		memoryTrace = theTrace;
-		L1 = new Cache(theL1Size, theL1Latency, theNumOfWays);
+		L1i = new Cache(theL1Size, theL1Latency, theNumOfWays);
+		L1d = new Cache(theL1Size, theL1Latency, theNumOfWays);
 		L2 = new Cache(theL2Size, theL2Latency, theNumOfWays);		
 	}
 

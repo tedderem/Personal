@@ -89,7 +89,20 @@ public class Simulator {
 		}
 
 		CPU cpu1 = new CPU(trace, L1_SIZE, L1_LATENCY, L2_SIZE, L2_LATENCY, NUM_OF_WAYS);
-		CPU cpu2 = new CPU(trace, L1_SIZE, L1_LATENCY, L2_SIZE, L2_LATENCY, NUM_OF_WAYS);		
+		CPU cpu2 = new CPU(trace, L1_SIZE, L1_LATENCY, L2_SIZE, L2_LATENCY, NUM_OF_WAYS);	
+		
+		//Testing index and tag calculations
+		for (int i = 0; i < trace.size(); i++) {
+			int test = trace.get(i).iAddress;
+			System.out.format("Instruction Address In decimal %d in hex 0x%x\n", test, test);
+			System.out.format("Instruction Address In binary %s\n", Integer.toBinaryString(test));
+			int index = test & (L1_SIZE - 1);
+			int tag = test >> (int)(Math.log(L1_SIZE) / Math.log(2));
+			System.out.format("L1 Index %s and Tag %s\n", Integer.toBinaryString(index), Integer.toBinaryString(tag));
+			index = test & (L2_SIZE - 1);
+			tag = test >> (int)(Math.log(L2_SIZE) / Math.log(2));
+			System.out.format("L2 Index %s and Tag %s\n\n", Integer.toBinaryString(index), Integer.toBinaryString(tag));		
+		}
 	}
 
 	/**
