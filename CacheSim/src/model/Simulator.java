@@ -6,7 +6,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.StringTokenizer;
 
 /**
  * Caching Simulator program that reads in address traces and allocates them appropriately to 
@@ -49,6 +48,8 @@ public class Simulator {
 	 * Some constructor.
 	 */
 	public Simulator() {
+		L3 = new Cache(L3_SIZE, L3_LATENCY, NUM_OF_WAYS);
+		
 		trace = new ArrayList<MemoryInfo>();
 		
 		try {
