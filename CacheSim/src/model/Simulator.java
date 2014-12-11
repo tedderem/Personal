@@ -6,6 +6,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Observable;
+import java.util.Observer;
 
 /**
  * Caching Simulator program that reads in address traces and allocates them appropriately to 
@@ -13,7 +15,7 @@ import java.util.ArrayList;
  * 
  * @author Erik Tedder
  */
-public class Simulator {
+public class Simulator implements Observer {
 	
 	/** 
 	 * Size of first level memory from 0 to this value. Anything beyond constitutes second
@@ -112,5 +114,11 @@ public class Simulator {
 	 */
 	public static void main(String... theArgs) {		
 		Simulator s = new Simulator();		
+	}
+
+	@Override
+	public void update(Observable o, Object arg) {
+		// TODO Auto-generated method stub
+		
 	}
 }

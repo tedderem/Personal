@@ -1,13 +1,14 @@
 package model;
 
 import java.util.ArrayList;
+import java.util.Observable;
 
 /**
  * Simulates a CPU for the Caching Simulator. CPU consists of an L1 and L2 cache locations.
  * 
  * @author Erik Tedder
  */
-public class CPU {
+public class CPU extends Observable {
 	
 	/** The first level cache for instruction. */
 	private Cache L1i;
