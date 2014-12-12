@@ -99,8 +99,8 @@ public class Simulator implements Observer {
 			System.err.println("ISSUE READING LINE");
 		}
 
-		cpu1 = new CPU(trace, L1_SIZE, L1_LATENCY, L2_SIZE, L2_LATENCY, NUM_OF_WAYS);
-		cpu2 = new CPU(trace, L1_SIZE, L1_LATENCY, L2_SIZE, L2_LATENCY, NUM_OF_WAYS);
+		cpu1 = new CPU(trace, L1_SIZE, L1_LATENCY, L2_SIZE, L2_LATENCY, NUM_OF_WAYS, 1);
+		cpu2 = new CPU(trace, L1_SIZE, L1_LATENCY, L2_SIZE, L2_LATENCY, NUM_OF_WAYS, 2);
 		cpu1.addObserver(this);
 		cpu2.addObserver(this);
 		cpu1.start();
@@ -149,9 +149,47 @@ public class Simulator implements Observer {
 			missNum += 2;
 			totalTime += L1_LATENCY + L2_LATENCY;
 			MemoryInfo m = (MemoryInfo) arg;
+			if (((CPU) o).cpuNumber == 1) {
+				if(cpu2.snoop(m)) {
+					cpu1.add(cpu2.get(m));
+				} else {
+					missNum++;
+					totalTime += L3_LATENCY;
+					int index = m.iAddress & (L3_SIZE - 1);
+					int tag = m.iAddress >> (int)(Math.log(L3_SIZE) / Math.log(2));
+					if (L3.entries[index].tag == tag) {
+						hitNum++;
+					} else {
+						cpu1.add(m.iAddress);
+					}
+				}
+				
+			} else {
+				if(cpu1.snoop(m)) {
+					cpu2.add(cpu1.get(m));
+				} else {
+					missNum++;
+					totalTime += L3_LATENCY;
+					int index = m.iAddress & (L3_SIZE - 1);
+					int tag = m.iAddress >> (int)(Math.log(L3_SIZE) / Math.log(2));
+					if (L3.entries[index].tag == tag) {
+						hitNum++;
+					} else {
+						cpu2.add(m.iAddress);
+					}
+				}
+			}
+		}
+		
+		if (arg instanceof Integer) {
+			int index = (int)arg & (L3_SIZE - 1);
+			int tag = (int)arg >> (int)(Math.log(L3_SIZE) / Math.log(2));;
+			totalTime += L3_LATENCY;
+			L3.insert(index, tag, 'E');
 		}
 		
 		if (arg == CacheEvent.COMPLETE) {
+			System.out.println("thread complete");
 			if (threadsComplete != CPU_TOTAL) {
 				threadsComplete++;
 			}

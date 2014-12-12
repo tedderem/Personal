@@ -9,6 +9,5 @@ package model;
 public enum CacheEvent {	
 	L1_HIT,
 	L2_HIT,
-	ADD_TO_L3,
 	COMPLETE;
 }

@@ -17,6 +17,8 @@ public class CPU extends Observable implements Runnable {
 	private Cache L1d;
 	/** The second level cache. */
 	private Cache L2;
+	/** Name for the CPU. */
+	protected int cpuNumber;
 	/** The memory trace. */
 	private ArrayList<MemoryInfo> memoryTrace;
 	
@@ -31,7 +33,8 @@ public class CPU extends Observable implements Runnable {
 	 */
 	public CPU(final ArrayList<MemoryInfo> theTrace, final int theL1Size, 
 			final int theL1Latency, final int theL2Size, final int theL2Latency, 
-			final int theNumOfWays) {		
+			final int theNumOfWays, final int thecpuNumber) {		
+		cpuNumber = thecpuNumber;
 		memoryTrace = theTrace;
 		L1i = new Cache(theL1Size, theL1Latency, theNumOfWays);
 		L1d = new Cache(theL1Size, theL1Latency, theNumOfWays);
@@ -47,17 +50,15 @@ public class CPU extends Observable implements Runnable {
 		
 		//go through each item of the memoryTrace and see if it is in the Caches
 		for (MemoryInfo m : memoryTrace) {
-			L1Index = getIndex(m, L1i.cacheSize);
-			L1Tag = getTag(m, L1i.cacheSize);
-			L2Index = getIndex(m, L2.cacheSize);
-			L2Tag = getTag(m, L2.cacheSize);
+			L1Index = getIndex(m.iAddress, L1i.cacheSize);
+			L1Tag = getTag(m.iAddress, L1i.cacheSize);
+			L2Index = getIndex(m.iAddress, L2.cacheSize);
+			L2Tag = getTag(m.iAddress, L2.cacheSize);
 			
 			if (L1i.entries[L1Index].tag == L1Tag) {
-				//do something
 				setChanged();
 				notifyObservers(CacheEvent.L1_HIT);
 			} else if (L2.entries[L2Index].tag == L2Tag) {
-				//do something
 				setChanged();
 				notifyObservers(CacheEvent.L2_HIT);
 			} else {
@@ -80,17 +81,23 @@ public class CPU extends Observable implements Runnable {
 		boolean contained = false;
 		
 		int L1Index, L1Tag, L2Index, L2Tag;
-		L1Index = getIndex(theMemoryItem, L1i.cacheSize);
-		L1Tag = getTag(theMemoryItem, L1i.cacheSize);
-		L2Index = getIndex(theMemoryItem, L2.cacheSize);
-		L2Tag = getTag(theMemoryItem, L2.cacheSize);
+		L1Index = getIndex(theMemoryItem.iAddress, L1i.cacheSize);
+		L1Tag = getTag(theMemoryItem.iAddress, L1i.cacheSize);
+		L2Index = getIndex(theMemoryItem.iAddress, L2.cacheSize);
+		L2Tag = getTag(theMemoryItem.iAddress, L2.cacheSize);
 		
 		if (L1i.entries[L1Index].tag == L1Tag) {
 			contained = true;
+			setChanged();
+			notifyObservers(CacheEvent.L1_HIT);
 		} else if (L1d.entries[L1Index].tag == L1Tag) {
 			contained = true;
+			setChanged();
+			notifyObservers(CacheEvent.L1_HIT);
 		} else if (L2.entries[L2Index].tag == L2Tag) {
 			contained = true;
+			setChanged();
+			notifyObservers(CacheEvent.L2_HIT);
 		}
 		
 		return contained;
@@ -107,10 +114,10 @@ public class CPU extends Observable implements Runnable {
 		int constructedValue = -1;
 		
 		int L1Index, L1Tag, L2Index, L2Tag;
-		L1Index = getIndex(theMemoryItem, L1i.cacheSize);
-		L1Tag = getTag(theMemoryItem, L1i.cacheSize);
-		L2Index = getIndex(theMemoryItem, L2.cacheSize);
-		L2Tag = getTag(theMemoryItem, L2.cacheSize);
+		L1Index = getIndex(theMemoryItem.iAddress, L1i.cacheSize);
+		L1Tag = getTag(theMemoryItem.iAddress, L1i.cacheSize);
+		L2Index = getIndex(theMemoryItem.iAddress, L2.cacheSize);
+		L2Tag = getTag(theMemoryItem.iAddress, L2.cacheSize);
 		
 		if (L1i.entries[L1Index].tag == L1Tag) {
 			constructedValue = L1Tag << (int)(Math.log(L1i.cacheSize) / Math.log(2));
@@ -130,15 +137,28 @@ public class CPU extends Observable implements Runnable {
 	 * 
 	 * @param theMemoryItem
 	 */
-	public void add(final MemoryInfo theMemoryItem) {
+	public void add(final int theAddress) {
 		int L1Index, L1Tag;
-		L1Index = getIndex(theMemoryItem, L1i.cacheSize);
-		L1Tag = getTag(theMemoryItem, L1i.cacheSize);
+		L1Index = getIndex(theAddress, L1i.cacheSize);
+		L1Tag = getTag(theAddress, L1i.cacheSize);
 		if (L1i.entries[L1Index].tag != -1) {
 			//attempt to reconstruct memory instruction
 			int oldValue = L1i.entries[L1Index].tag << (int)(Math.log(L1i.cacheSize) / Math.log(2));
 			oldValue = oldValue + L1Index;
-			//TODO: flush item to L2 and flush L2 (if necessary to L3)
+			L1i.insert(L1Index, L1Tag, 'E');
+			
+			int L2Index = getIndex(oldValue, L2.cacheSize);
+			int L2Tag = getTag(oldValue, L2.cacheSize);			
+			if (L2.entries[L2Index].tag != -1) {
+				int temp = oldValue;
+				oldValue = L2.entries[L2Index].tag << (int)(Math.log(L2.cacheSize) / Math.log(2));
+				oldValue = oldValue + L2Index;
+				L2.insert(L2Index, L2Tag, 'E');
+				setChanged();
+				notifyObservers(new Integer(oldValue));
+			} else {
+				L2.insert(L2Index, L2Tag, 'E');
+			}
 		} else {
 			//no item in this cache location, insert.
 			L1i.insert(L1Index, L1Tag, 'E');
@@ -152,8 +172,8 @@ public class CPU extends Observable implements Runnable {
 	 * @param theCacheSize The size of the cache used.
 	 * @return The index for this item.
 	 */
-	private int getIndex(final MemoryInfo theMemoryItem, final int theCacheSize) {
-		return theMemoryItem.iAddress & (theCacheSize - 1);
+	private int getIndex(final int address, final int theCacheSize) {
+		return address & (theCacheSize - 1);
 	}
 	
 	/**
@@ -163,8 +183,8 @@ public class CPU extends Observable implements Runnable {
 	 * @param theCacheSize
 	 * @return
 	 */
-	private int getTag(final MemoryInfo theMemoryItem, final int theCacheSize) {
-		return theMemoryItem.iAddress >> (int)(Math.log(theCacheSize) / Math.log(2));
+	private int getTag(final int address, final int theCacheSize) {
+		return address >> (int)(Math.log(theCacheSize) / Math.log(2));
 	}
 
 	/**
