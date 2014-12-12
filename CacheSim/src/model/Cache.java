@@ -27,6 +27,17 @@ public class Cache {
 			entries[i] = new CacheEntry();
 		}
 	}
+	
+	/**
+	 * Method for inserting an item into the cache with a particular MESI value.
+	 * 
+	 * @param theIndex The location in cache for insertion.
+	 * @param theTag The tag of the cache entry.
+	 * @param theMESI The MESI state.
+	 */
+	public void insert(final int theIndex, final int theTag, final char theMESI) {
+		entries[theIndex] = new CacheEntry(theMESI, theTag);
+	}
 
 	/**
 	 * The individual entries to a Cache's myEntries field. Each CacheEntry consists of a MESI
@@ -39,8 +50,12 @@ public class Cache {
 		int tag;
 		
 		public CacheEntry() {
-			MESIState = ' ';
-			tag = -1;
+			this(' ', -1);
+		}
+		
+		public CacheEntry(final char theMESI, final int theTag) {
+			MESIState = theMESI;
+			tag = theTag;
 		}
 	}
 }

@@ -16,7 +16,6 @@ import java.util.Observer;
  * @author Erik Tedder
  */
 public class Simulator implements Observer {
-	
 	/** 
 	 * Size of first level memory from 0 to this value. Anything beyond constitutes second
 	 * level memory.
@@ -118,7 +117,17 @@ public class Simulator implements Observer {
 
 	@Override
 	public void update(Observable o, Object arg) {
-		// TODO Auto-generated method stub
-		
+		if (arg == CacheEvent.L1_HIT) {
+			hitNum++;
+			totalTime += L1_LATENCY;
+		} else if (arg == CacheEvent.L2_HIT) {
+			hitNum++;
+			missNum++;
+			totalTime += L1_LATENCY + L2_LATENCY;
+		} else if (arg instanceof MemoryInfo) {
+			missNum += 2;
+			totalTime += L1_LATENCY + L2_LATENCY;
+			MemoryInfo m = (MemoryInfo) arg;
+		}
 	}
 }
