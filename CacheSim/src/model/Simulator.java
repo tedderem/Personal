@@ -189,7 +189,7 @@ public class Simulator implements Observer {
 		}
 		
 		if (arg == CacheEvent.COMPLETE) {
-			System.out.println("thread complete");
+			System.out.println("thread " + ((CPU) o).cpuNumber + " complete");
 			if (threadsComplete != CPU_TOTAL) {
 				threadsComplete++;
 			}

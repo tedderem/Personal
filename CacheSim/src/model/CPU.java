@@ -65,6 +65,12 @@ public class CPU extends Observable implements Runnable {
 				setChanged();
 				notifyObservers(m);
 			}
+			try {
+				Thread.sleep(1);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 		setChanged();
 		notifyObservers(CacheEvent.COMPLETE);
@@ -191,7 +197,7 @@ public class CPU extends Observable implements Runnable {
 	 * Starts the CPU.
 	 */
 	public void start() {
-		System.out.println("thread started");
+		System.out.println("thread " + cpuNumber + " started");
 		t = new Thread(this);
 		t.start();
 	}
