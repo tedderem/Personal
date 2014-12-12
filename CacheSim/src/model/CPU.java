@@ -8,8 +8,9 @@ import java.util.Observable;
  * 
  * @author Erik Tedder
  */
-public class CPU extends Observable {
+public class CPU extends Observable implements Runnable {
 	
+	private Thread t;
 	/** The first level cache for instruction. */
 	private Cache L1i;
 	/** The first level cache for data. */
@@ -30,12 +31,18 @@ public class CPU extends Observable {
 	 */
 	public CPU(final ArrayList<MemoryInfo> theTrace, final int theL1Size, 
 			final int theL1Latency, final int theL2Size, final int theL2Latency, 
-			final int theNumOfWays) {
+			final int theNumOfWays) {		
 		memoryTrace = theTrace;
 		L1i = new Cache(theL1Size, theL1Latency, theNumOfWays);
 		L1d = new Cache(theL1Size, theL1Latency, theNumOfWays);
-		L2 = new Cache(theL2Size, theL2Latency, theNumOfWays);		
-		
+		L2 = new Cache(theL2Size, theL2Latency, theNumOfWays);				
+	}
+	
+	/**
+	 * For threading.
+	 */
+	@Override
+	public void run() {
 		int L1Index, L1Tag, L2Index, L2Tag;
 		
 		//go through each item of the memoryTrace and see if it is in the Caches
@@ -58,6 +65,8 @@ public class CPU extends Observable {
 				notifyObservers(m);
 			}
 		}
+		setChanged();
+		notifyObservers(CacheEvent.COMPLETE);
 	}
 	
 	/**
@@ -156,6 +165,15 @@ public class CPU extends Observable {
 	 */
 	private int getTag(final MemoryInfo theMemoryItem, final int theCacheSize) {
 		return theMemoryItem.iAddress >> (int)(Math.log(theCacheSize) / Math.log(2));
+	}
+
+	/**
+	 * Starts the CPU.
+	 */
+	public void start() {
+		System.out.println("thread started");
+		t = new Thread(this);
+		t.start();
 	}
 
 }

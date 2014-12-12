@@ -30,6 +30,7 @@ public class Simulator implements Observer {
 	private final static int FIRST_MEM_LATENCY = 100;
 	private final static int SECOND_MEM_LATENCY = 250;
 	private final static int NUM_OF_WAYS = 2;
+	private final static int CPU_TOTAL = 2;
 	/**	String name of the file for memory trace. */
 	private final static String TRACE_FILE = "trace-2k.csv";
 	
@@ -42,13 +43,22 @@ public class Simulator implements Observer {
 	private int hitNum;
 	/** The total time (in cycles) based off cache misses. */
 	private int totalTime;
+	private int threadsComplete;
 	/** List for the TRACE_FILE. */
 	private ArrayList<MemoryInfo> trace;
+	
+	private CPU cpu1;
+	private CPU cpu2;
 	
 	/**
 	 * Some constructor.
 	 */
 	public Simulator() {
+		missNum = 0;
+		hitNum = 0;
+		totalTime = 0;
+		threadsComplete = 0;
+		
 		L3 = new Cache(L3_SIZE, L3_LATENCY, NUM_OF_WAYS);
 		
 		trace = new ArrayList<MemoryInfo>();
@@ -89,21 +99,28 @@ public class Simulator implements Observer {
 			System.err.println("ISSUE READING LINE");
 		}
 
-		CPU cpu1 = new CPU(trace, L1_SIZE, L1_LATENCY, L2_SIZE, L2_LATENCY, NUM_OF_WAYS);
-		CPU cpu2 = new CPU(trace, L1_SIZE, L1_LATENCY, L2_SIZE, L2_LATENCY, NUM_OF_WAYS);	
+		cpu1 = new CPU(trace, L1_SIZE, L1_LATENCY, L2_SIZE, L2_LATENCY, NUM_OF_WAYS);
+		cpu2 = new CPU(trace, L1_SIZE, L1_LATENCY, L2_SIZE, L2_LATENCY, NUM_OF_WAYS);
+		cpu1.addObserver(this);
+		cpu2.addObserver(this);
+		cpu1.start();
+		cpu2.start();
 		
 		//Testing index and tag calculations
-		for (int i = 0; i < trace.size(); i++) {
-			int test = trace.get(i).iAddress;
-			System.out.format("Instruction Address In decimal %d in hex 0x%x\n", test, test);
-			System.out.format("Instruction Address In binary %s\n", Integer.toBinaryString(test));
-			int index = test & (L1_SIZE - 1);
-			int tag = test >> (int)(Math.log(L1_SIZE) / Math.log(2));
-			System.out.format("L1 Index %s and Tag %s\n", Integer.toBinaryString(index), Integer.toBinaryString(tag));
-			index = test & (L2_SIZE - 1);
-			tag = test >> (int)(Math.log(L2_SIZE) / Math.log(2));
-			System.out.format("L2 Index %s and Tag %s\n\n", Integer.toBinaryString(index), Integer.toBinaryString(tag));		
-		}
+//		for (int i = 0; i < trace.size(); i++) {
+//			int test = trace.get(i).iAddress;
+//			System.out.format("Instruction Address In decimal %d in hex 0x%x\n", test, test);
+//			System.out.format("Instruction Address In binary %s\n", Integer.toBinaryString(test));
+//			int index = test & (L1_SIZE - 1);
+//			int tag = test >> (int)(Math.log(L1_SIZE) / Math.log(2));
+//			System.out.format("L1 Index %s and Tag %s\n", Integer.toBinaryString(index), Integer.toBinaryString(tag));
+//			index = test & (L2_SIZE - 1);
+//			tag = test >> (int)(Math.log(L2_SIZE) / Math.log(2));
+//			System.out.format("L2 Index %s and Tag %s\n", Integer.toBinaryString(index), Integer.toBinaryString(tag));	
+//			int recon = tag << (int)(Math.log(L2_SIZE) / Math.log(2));
+//			recon += index;
+//			System.out.format("Address reconstructed %s\n\n", Integer.toBinaryString(recon));			
+//		}		
 	}
 
 	/**
@@ -120,14 +137,28 @@ public class Simulator implements Observer {
 		if (arg == CacheEvent.L1_HIT) {
 			hitNum++;
 			totalTime += L1_LATENCY;
-		} else if (arg == CacheEvent.L2_HIT) {
+		}
+		
+		if (arg == CacheEvent.L2_HIT) {
 			hitNum++;
 			missNum++;
 			totalTime += L1_LATENCY + L2_LATENCY;
-		} else if (arg instanceof MemoryInfo) {
+		} 
+		
+		if (arg instanceof MemoryInfo) {
 			missNum += 2;
 			totalTime += L1_LATENCY + L2_LATENCY;
 			MemoryInfo m = (MemoryInfo) arg;
+		}
+		
+		if (arg == CacheEvent.COMPLETE) {
+			if (threadsComplete != CPU_TOTAL) {
+				threadsComplete++;
+			}
+			
+			if (threadsComplete == CPU_TOTAL) {
+				System.out.format("%d hits %d misses %d total cycles", hitNum, missNum, totalTime);
+			}
 		}
 	}
 }
