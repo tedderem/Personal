@@ -184,7 +184,7 @@ public class Simulator implements Observer {
 		if (arg instanceof Integer) {
 			int index = (int)arg & (L3_SIZE - 1);
 			int tag = (int)arg >> (int)(Math.log(L3_SIZE) / Math.log(2));;
-			totalTime += L3_LATENCY;
+			//totalTime += L3_LATENCY;
 			L3.insert(index, tag, 'E');
 		}
 		
