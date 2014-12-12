@@ -156,7 +156,6 @@ public class CPU extends Observable implements Runnable {
 			int L2Index = getIndex(oldValue, L2.cacheSize);
 			int L2Tag = getTag(oldValue, L2.cacheSize);			
 			if (L2.entries[L2Index].tag != -1) {
-				int temp = oldValue;
 				oldValue = L2.entries[L2Index].tag << (int)(Math.log(L2.cacheSize) / Math.log(2));
 				oldValue = oldValue + L2Index;
 				L2.insert(L2Index, L2Tag, 'E');
