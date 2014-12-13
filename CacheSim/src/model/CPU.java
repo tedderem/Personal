@@ -22,6 +22,11 @@ public class CPU extends Observable implements Runnable {
 	/** The memory trace. */
 	private ArrayList<MemoryInfo> memoryTrace;
 	
+	protected int l1missNum = 0;
+	protected int l1hitNum = 0;
+	protected int l2missNum = 0;
+	protected int l2hitNum = 0;
+	
 	/**
 	 * CPU constructor for instantiating the different cache sizes and values.
 	 * 
@@ -56,24 +61,33 @@ public class CPU extends Observable implements Runnable {
 			L2Tag = getTag(m.iAddress, L2.cacheSize);
 			
 			if (L1i.entries[L1Index].tag == L1Tag) {
+				l1hitNum++;
 				setChanged();
 				notifyObservers(CacheEvent.L1_HIT);
 			} else if (L2.entries[L2Index].tag == L2Tag) {
+				l1missNum++;
+				l2hitNum++;
 				setChanged();
 				notifyObservers(CacheEvent.L2_HIT);
 			} else {
+				l1missNum++;
+				l2missNum++;
 				setChanged();
 				notifyObservers(m);
 			}
-			try {
-				Thread.sleep(1);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+//			try {
+//				Thread.sleep(1);
+//			} catch (InterruptedException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			}
 		}
+		System.out.format("\n[CPU %d] Finished\n[L1] Hits: %d Misses: %d\n[L2] Hits: %d "
+				+ "Misses: %d\n", cpuNumber, l1hitNum, l1missNum, l2hitNum, l2missNum);
+
 		setChanged();
 		notifyObservers(CacheEvent.COMPLETE);
+		
 	}
 	
 	/**
@@ -93,14 +107,18 @@ public class CPU extends Observable implements Runnable {
 		L2Tag = getTag(theMemoryItem.iAddress, L2.cacheSize);
 		
 		if (L1i.entries[L1Index].tag == L1Tag) {
+			l1hitNum++;
 			contained = true;
 			setChanged();
 			notifyObservers(CacheEvent.L1_HIT);
 		} else if (L1d.entries[L1Index].tag == L1Tag) {
+			l1hitNum++;
 			contained = true;
 			setChanged();
 			notifyObservers(CacheEvent.L1_HIT);
 		} else if (L2.entries[L2Index].tag == L2Tag) {
+			l1missNum++;
+			l2hitNum++;
 			contained = true;
 			setChanged();
 			notifyObservers(CacheEvent.L2_HIT);
@@ -145,8 +163,10 @@ public class CPU extends Observable implements Runnable {
 	 */
 	public void add(final int theAddress) {
 		int L1Index, L1Tag;
+		
 		L1Index = getIndex(theAddress, L1i.cacheSize);
 		L1Tag = getTag(theAddress, L1i.cacheSize);
+		
 		if (L1i.entries[L1Index].tag != -1) {
 			//attempt to reconstruct memory instruction
 			int oldValue = L1i.entries[L1Index].tag << (int)(Math.log(L1i.cacheSize) / Math.log(2));
@@ -197,7 +217,7 @@ public class CPU extends Observable implements Runnable {
 	 * Starts the CPU.
 	 */
 	public void start() {
-		System.out.println("thread " + cpuNumber + " started");
+		System.out.format("[CPU %d] started\n", cpuNumber);
 		t = new Thread(this);
 		t.start();
 	}

@@ -3,6 +3,7 @@ package model;
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
@@ -37,12 +38,15 @@ public class Simulator implements Observer {
 	/** The shared level 3 cache for the CPUs. */
 	protected Cache L3;
 	
-	/** The total number of misses from caching. */
-	private int missNum;
-	/** The total number of hits from caching. */
-	private int hitNum;
+//	/** The total number of misses from caching. */
+//	private int missNum;
+//	/** The total number of hits from caching. */
+//	private int hitNum;
+	private int l3missNum;
+	private int l3hitNum;
 	/** The total time (in cycles) based off cache misses. */
-	private int totalTime;
+	//private int totalTime;
+	/** Counter to denote when the threads are complete. */
 	private int threadsComplete;
 	/** List for the TRACE_FILE. */
 	private ArrayList<MemoryInfo> trace;
@@ -54,20 +58,25 @@ public class Simulator implements Observer {
 	 * Some constructor.
 	 */
 	public Simulator() {
-		missNum = 0;
-		hitNum = 0;
-		totalTime = 0;
+//		missNum = 0;
+//		hitNum = 0;
+		l3missNum = 0;
+		l3hitNum = 0;
+		//totalTime = 0;
 		threadsComplete = 0;
+		
+		int test = ((0xa1294857 >> 5) & 0x1f);
+		System.out.format("index %d real-index %d\n\n", test, test * 2);
+		
 		
 		L3 = new Cache(L3_SIZE, L3_LATENCY, NUM_OF_WAYS);
 		
 		trace = new ArrayList<MemoryInfo>();
 		
 		try {
-			FileInputStream is = new FileInputStream(TRACE_FILE);
-			BufferedReader br = new BufferedReader(new InputStreamReader(is));
+			BufferedReader br = new BufferedReader(new FileReader(TRACE_FILE));
 			String line = br.readLine();
-			
+						
 			while (line != null) {
 				String[] tokens = line.split(",", -1);
 				
@@ -85,13 +94,10 @@ public class Simulator implements Observer {
 					data = Integer.parseInt(tokens[2]);
 				}				
 				
-				//System.out.format("instruction address %d, IO value %d, data address %d\n", add, io, data);
 				trace.add(new MemoryInfo(add, io, data));
 				
 				line = br.readLine();
 			}
-			
-			is.close();
 			br.close();
 		} catch (FileNotFoundException e) {
 			System.err.println("ERROR READING FILE");
@@ -134,47 +140,51 @@ public class Simulator implements Observer {
 
 	@Override
 	public void update(Observable o, Object arg) {
-		if (arg == CacheEvent.L1_HIT) {
-			hitNum++;
-			totalTime += L1_LATENCY;
-		}
-		
-		if (arg == CacheEvent.L2_HIT) {
-			hitNum++;
-			missNum++;
-			totalTime += L1_LATENCY + L2_LATENCY;
-		} 
+//		if (arg == CacheEvent.L1_HIT) {
+//			hitNum++;
+//			totalTime += L1_LATENCY;
+//		}
+//		
+//		if (arg == CacheEvent.L2_HIT) {
+//			hitNum++;
+//			missNum++;
+//			totalTime += L1_LATENCY + L2_LATENCY;
+//		} 
 		
 		if (arg instanceof MemoryInfo) {
-			missNum += 2;
-			totalTime += L1_LATENCY + L2_LATENCY;
+			//missNum += 2;
+			//totalTime += L1_LATENCY + L2_LATENCY;
 			MemoryInfo m = (MemoryInfo) arg;
-			if (((CPU) o).cpuNumber == 1) {
+			if (((CPU) o).cpuNumber == 1) {				
 				if(cpu2.snoop(m)) {
 					cpu1.add(cpu2.get(m));
+					//set to shared MESI state
 				} else {
-					missNum++;
-					totalTime += L3_LATENCY;
+					//missNum++;
+					//totalTime += L3_LATENCY;
 					int index = m.iAddress & (L3_SIZE - 1);
 					int tag = m.iAddress >> (int)(Math.log(L3_SIZE) / Math.log(2));
 					if (L3.entries[index].tag == tag) {
-						hitNum++;
+						//hitNum++;
+						l3hitNum++;
 					} else {
+						l3missNum++;
 						cpu1.add(m.iAddress);
 					}
-				}
-				
+				}				
 			} else {
 				if(cpu1.snoop(m)) {
-					cpu2.add(cpu1.get(m));
+					//cpu2.add(cpu1.get(m));
 				} else {
-					missNum++;
-					totalTime += L3_LATENCY;
+					//missNum++;
+					//totalTime += L3_LATENCY;
 					int index = m.iAddress & (L3_SIZE - 1);
 					int tag = m.iAddress >> (int)(Math.log(L3_SIZE) / Math.log(2));
 					if (L3.entries[index].tag == tag) {
-						hitNum++;
+						//hitNum++;
+						l3hitNum++;
 					} else {
+						l3missNum++;
 						cpu2.add(m.iAddress);
 					}
 				}
@@ -189,13 +199,17 @@ public class Simulator implements Observer {
 		}
 		
 		if (arg == CacheEvent.COMPLETE) {
-			System.out.println("thread " + ((CPU) o).cpuNumber + " complete");
 			if (threadsComplete != CPU_TOTAL) {
 				threadsComplete++;
 			}
 			
 			if (threadsComplete == CPU_TOTAL) {
-				System.out.format("%d hits %d misses %d total cycles", hitNum, missNum, totalTime);
+				System.out.format("\n[L3] Hits: %d Misses: %d\n", l3hitNum, l3missNum);
+				int hits = l3hitNum + cpu1.l1hitNum + cpu1.l2hitNum + cpu2.l1hitNum + cpu2.l2hitNum;
+				int misses = l3missNum + cpu1.l1missNum + cpu1.l2missNum + cpu2.l1missNum + cpu2.l2missNum;
+				int cycles = l3missNum * L3_LATENCY + cpu1.l1missNum * L1_LATENCY + cpu1.l2missNum * L2_LATENCY + cpu2.l1missNum * L1_LATENCY + cpu2.l2missNum * L2_LATENCY;
+				System.out.format("Total hits: %d Total Misses: %d Total Cycles: %d", hits, misses, cycles);
+				//System.out.format("%d hits %d misses %d total cycles", hitNum, missNum, totalTime);
 			}
 		}
 	}
