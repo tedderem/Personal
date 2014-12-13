@@ -2,6 +2,7 @@ package model;
 
 import java.util.ArrayList;
 import java.util.Observable;
+import java.util.Random;
 
 /**
  * Simulates a CPU for the Caching Simulator. CPU consists of an L1 and L2 cache locations.
@@ -21,6 +22,7 @@ public class CPU extends Observable implements Runnable {
 	protected int cpuNumber;
 	/** The memory trace. */
 	private ArrayList<MemoryInfo> memoryTrace;
+	private Random r = new Random();
 	
 	protected int l1missNum = 0;
 	protected int l1hitNum = 0;
@@ -55,32 +57,40 @@ public class CPU extends Observable implements Runnable {
 		
 		//go through each item of the memoryTrace and see if it is in the Caches
 		for (MemoryInfo m : memoryTrace) {
-			L1Index = getIndex(m.iAddress, L1i.cacheSize);
-			L1Tag = getTag(m.iAddress, L1i.cacheSize);
-			L2Index = getIndex(m.iAddress, L2.cacheSize);
-			L2Tag = getTag(m.iAddress, L2.cacheSize);
+			boolean located = false;
 			
-			if (L1i.entries[L1Index].tag == L1Tag) {
-				l1hitNum++;
-				setChanged();
-				notifyObservers(CacheEvent.L1_HIT);
-			} else if (L2.entries[L2Index].tag == L2Tag) {
-				l1missNum++;
-				l2hitNum++;
-				setChanged();
-				notifyObservers(CacheEvent.L2_HIT);
-			} else {
+			L1Index = getIndex(m.iAddress, L1i);
+			L1Tag = getTag(m.iAddress, L1i);
+			L2Index = getIndex(m.iAddress, L2);
+			L2Tag = getTag(m.iAddress, L2);
+			
+			for (int i = 0; i < L1i.cacheSize/L1i.numOfWays && !located && i + L1Index < L1i.cacheSize; i++) {
+				if (L1i.entries[L1Index + i].tag == L1Tag) {
+					located = true;
+					l1hitNum++;
+				} 
+			}
+			
+			for (int i = 0; i < L2.cacheSize/L2.numOfWays && !located && i + L2Index < L2.cacheSize; i++) {
+				if (L2.entries[L2Index + i].tag == L2Tag) {
+					located = true;
+					l1missNum++;
+					l2hitNum++;
+				}
+			}
+			if (!located) {
 				l1missNum++;
 				l2missNum++;
 				setChanged();
 				notifyObservers(m);
 			}
-//			try {
-//				Thread.sleep(1);
-//			} catch (InterruptedException e) {
-//				// TODO Auto-generated catch block
-//				e.printStackTrace();
-//			}
+			
+			try {
+				Thread.sleep(1);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 		System.out.format("\n[CPU %d] Finished\n[L1] Hits: %d Misses: %d\n[L2] Hits: %d "
 				+ "Misses: %d\n", cpuNumber, l1hitNum, l1missNum, l2hitNum, l2missNum);
@@ -101,27 +111,24 @@ public class CPU extends Observable implements Runnable {
 		boolean contained = false;
 		
 		int L1Index, L1Tag, L2Index, L2Tag;
-		L1Index = getIndex(theMemoryItem.iAddress, L1i.cacheSize);
-		L1Tag = getTag(theMemoryItem.iAddress, L1i.cacheSize);
-		L2Index = getIndex(theMemoryItem.iAddress, L2.cacheSize);
-		L2Tag = getTag(theMemoryItem.iAddress, L2.cacheSize);
+		L1Index = getIndex(theMemoryItem.iAddress, L1i);
+		L1Tag = getTag(theMemoryItem.iAddress, L1i);
+		L2Index = getIndex(theMemoryItem.iAddress, L2);
+		L2Tag = getTag(theMemoryItem.iAddress, L2);
 		
-		if (L1i.entries[L1Index].tag == L1Tag) {
-			l1hitNum++;
-			contained = true;
-			setChanged();
-			notifyObservers(CacheEvent.L1_HIT);
-		} else if (L1d.entries[L1Index].tag == L1Tag) {
-			l1hitNum++;
-			contained = true;
-			setChanged();
-			notifyObservers(CacheEvent.L1_HIT);
-		} else if (L2.entries[L2Index].tag == L2Tag) {
-			l1missNum++;
-			l2hitNum++;
-			contained = true;
-			setChanged();
-			notifyObservers(CacheEvent.L2_HIT);
+		for (int i = 0; i < L1i.cacheSize/L1i.numOfWays && !contained && i + L1Index < L1i.cacheSize; i++) {
+			if (L1i.entries[L1Index + i].tag == L1Tag) {
+				contained = true;
+				l1hitNum++;
+			}
+		}
+		
+		for (int i = 0; i < L2.cacheSize/L2.numOfWays && !contained && i + L2Index < L2.cacheSize; i++) {
+			if (L2.entries[L2Index + i].tag == L2Tag) {
+				contained = true;
+				l1missNum++;
+				l2hitNum++;
+			}
 		}
 		
 		return contained;
@@ -136,21 +143,30 @@ public class CPU extends Observable implements Runnable {
 	 */
 	public int get(final MemoryInfo theMemoryItem) {
 		int constructedValue = -1;
+		boolean found = false;
 		
 		int L1Index, L1Tag, L2Index, L2Tag;
-		L1Index = getIndex(theMemoryItem.iAddress, L1i.cacheSize);
-		L1Tag = getTag(theMemoryItem.iAddress, L1i.cacheSize);
-		L2Index = getIndex(theMemoryItem.iAddress, L2.cacheSize);
-		L2Tag = getTag(theMemoryItem.iAddress, L2.cacheSize);
+		L1Index = getIndex(theMemoryItem.iAddress, L1i);
+		L1Tag = getTag(theMemoryItem.iAddress, L1i);
+		L2Index = getIndex(theMemoryItem.iAddress, L2);
+		L2Tag = getTag(theMemoryItem.iAddress, L2);
 		
-		if (L1i.entries[L1Index].tag == L1Tag) {
-			constructedValue = L1Tag << (int)(Math.log(L1i.cacheSize) / Math.log(2));
-			constructedValue = constructedValue + L1Index;
-			L1i.entries[L1Index].MESIState = 'S';
-		} else if (L2.entries[L2Index].tag == L2Tag) {
-			constructedValue = L2Tag << (int)(Math.log(L2.cacheSize) / Math.log(2));
-			constructedValue = constructedValue + L2Index;
-			L2.entries[L2Index].MESIState = 'S';
+		for (int i = 0; i < L1i.cacheSize/L1i.numOfWays && !found && i + L1Index < L1i.cacheSize; i++) {
+			if (L1i.entries[L1Index + i].tag == L1Tag) {
+				found = true;
+				constructedValue = L1Tag << (int)(Math.log(L1i.cacheSize/L1i.numOfWays) / Math.log(2));
+				constructedValue = constructedValue + L1Index;
+				L1i.entries[L1Index + i].MESIState = 'S';
+			}
+		}
+		
+		for (int i = 0; i < L2.cacheSize/L2.numOfWays && !found && i + L2Index < L2.cacheSize; i++) {
+			if (L2.entries[L2Index + i].tag == L2Tag) {
+				found = true;
+				constructedValue = L2Tag << (int)(Math.log(L2.cacheSize/L2.numOfWays) / Math.log(2));
+				constructedValue = constructedValue + L2Index;
+				L2.entries[L2Index + i].MESIState = 'S';
+			}
 		}
 		
 		return constructedValue;
@@ -163,31 +179,42 @@ public class CPU extends Observable implements Runnable {
 	 */
 	public void add(final int theAddress) {
 		int L1Index, L1Tag;
+		boolean placed = false;
 		
-		L1Index = getIndex(theAddress, L1i.cacheSize);
-		L1Tag = getTag(theAddress, L1i.cacheSize);
+		L1Index = getIndex(theAddress, L1i);
+		L1Tag = getTag(theAddress, L1i);
 		
-		if (L1i.entries[L1Index].tag != -1) {
-			//attempt to reconstruct memory instruction
-			int oldValue = L1i.entries[L1Index].tag << (int)(Math.log(L1i.cacheSize) / Math.log(2));
+		for (int i = 0; i < L1i.cacheSize/L1i.numOfWays && i + L1Index < L1i.cacheSize; i++) {
+			if (L1i.entries[L1Index + i].tag == -1) {
+				L1i.insert(L1Index + i, L1Tag, 'E');
+				placed = true;
+			}
+		}
+		if (!placed) {
+			int random = r.nextInt(L1i.numOfWays);
+			int oldValue = L1i.entries[L1Index + random].tag << (int)(Math.log(L1i.cacheSize/L1i.numOfWays) / Math.log(2));
 			oldValue = oldValue + L1Index;
-			L1i.insert(L1Index, L1Tag, 'E');
+			L1i.insert(L1Index + random, L1Tag, 'E');
 			
-			int L2Index = getIndex(oldValue, L2.cacheSize);
-			int L2Tag = getTag(oldValue, L2.cacheSize);			
-			if (L2.entries[L2Index].tag != -1) {
-				oldValue = L2.entries[L2Index].tag << (int)(Math.log(L2.cacheSize) / Math.log(2));
+			int L2Index = getIndex(oldValue, L2);
+			int L2Tag = getTag(oldValue, L2);
+			placed = false;
+			for (int i = 0; i < L2.cacheSize/L2.numOfWays && i + L2Index < L2.cacheSize; i++) {
+				if (L2.entries[L2Index].tag == -1) {
+					L2.insert(L2Index + i, L2Tag, 'E');
+					placed = true;
+				}
+			}
+			
+			if(!placed) {
+				random = r.nextInt(L2.numOfWays);
+				oldValue = L2.entries[L2Index + random].tag << (int)(Math.log(L2.cacheSize/L2.numOfWays) / Math.log(2));
 				oldValue = oldValue + L2Index;
-				L2.insert(L2Index, L2Tag, 'E');
+				L2.insert(L2Index + random, L2Tag, 'E');
 				
 				setChanged();
 				notifyObservers(new Integer(oldValue));
-			} else {
-				L2.insert(L2Index, L2Tag, 'E');
 			}
-		} else {
-			//no item in this cache location, insert.
-			L1i.insert(L1Index, L1Tag, 'E');
 		}
 	}
 	
@@ -198,8 +225,8 @@ public class CPU extends Observable implements Runnable {
 	 * @param theCacheSize The size of the cache used.
 	 * @return The index for this item.
 	 */
-	private int getIndex(final int address, final int theCacheSize) {
-		return address & (theCacheSize - 1);
+	private int getIndex(final int address, final Cache theCache) {
+		return address & (theCache.cacheSize/theCache.numOfWays - 1);
 	}
 	
 	/**
@@ -209,8 +236,8 @@ public class CPU extends Observable implements Runnable {
 	 * @param theCacheSize
 	 * @return
 	 */
-	private int getTag(final int address, final int theCacheSize) {
-		return address >> (int)(Math.log(theCacheSize) / Math.log(2));
+	private int getTag(final int address, final Cache theCache) {
+		return address >> (int)(Math.log(theCache.cacheSize/theCache.numOfWays) / Math.log(2));
 	}
 
 	/**

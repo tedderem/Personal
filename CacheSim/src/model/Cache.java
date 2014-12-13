@@ -48,12 +48,14 @@ public class Cache {
 	public class CacheEntry {
 		char MESIState;
 		int tag;
+		//MemoryInfo data;
 		
 		public CacheEntry() {
 			this(' ', -1);
 		}
 		
 		public CacheEntry(final char theMESI, final int theTag) {
+			//data = theData;
 			MESIState = theMESI;
 			tag = theTag;
 		}

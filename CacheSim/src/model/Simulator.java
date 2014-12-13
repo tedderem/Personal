@@ -1,14 +1,13 @@
 package model;
 
 import java.io.BufferedReader;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Observable;
 import java.util.Observer;
+import java.util.Random;
 
 /**
  * Caching Simulator program that reads in address traces and allocates them appropriately to 
@@ -30,7 +29,7 @@ public class Simulator implements Observer {
 	private final static int L3_LATENCY = 20;
 	private final static int FIRST_MEM_LATENCY = 100;
 	private final static int SECOND_MEM_LATENCY = 250;
-	private final static int NUM_OF_WAYS = 2;
+	private final static int NUM_OF_WAYS = 8;
 	private final static int CPU_TOTAL = 2;
 	/**	String name of the file for memory trace. */
 	private final static String TRACE_FILE = "trace-2k.csv";
@@ -38,18 +37,14 @@ public class Simulator implements Observer {
 	/** The shared level 3 cache for the CPUs. */
 	protected Cache L3;
 	
-//	/** The total number of misses from caching. */
-//	private int missNum;
-//	/** The total number of hits from caching. */
-//	private int hitNum;
 	private int l3missNum;
 	private int l3hitNum;
-	/** The total time (in cycles) based off cache misses. */
-	//private int totalTime;
+	
 	/** Counter to denote when the threads are complete. */
 	private int threadsComplete;
 	/** List for the TRACE_FILE. */
 	private ArrayList<MemoryInfo> trace;
+	private Random r = new Random();
 	
 	private CPU cpu1;
 	private CPU cpu2;
@@ -58,16 +53,9 @@ public class Simulator implements Observer {
 	 * Some constructor.
 	 */
 	public Simulator() {
-//		missNum = 0;
-//		hitNum = 0;
 		l3missNum = 0;
 		l3hitNum = 0;
-		//totalTime = 0;
-		threadsComplete = 0;
-		
-		int test = ((0xa1294857 >> 5) & 0x1f);
-		System.out.format("index %d real-index %d\n\n", test, test * 2);
-		
+		threadsComplete = 0;		
 		
 		L3 = new Cache(L3_SIZE, L3_LATENCY, NUM_OF_WAYS);
 		
@@ -110,23 +98,7 @@ public class Simulator implements Observer {
 		cpu1.addObserver(this);
 		cpu2.addObserver(this);
 		cpu1.start();
-		cpu2.start();
-		
-		//Testing index and tag calculations
-//		for (int i = 0; i < trace.size(); i++) {
-//			int test = trace.get(i).iAddress;
-//			System.out.format("Instruction Address In decimal %d in hex 0x%x\n", test, test);
-//			System.out.format("Instruction Address In binary %s\n", Integer.toBinaryString(test));
-//			int index = test & (L1_SIZE - 1);
-//			int tag = test >> (int)(Math.log(L1_SIZE) / Math.log(2));
-//			System.out.format("L1 Index %s and Tag %s\n", Integer.toBinaryString(index), Integer.toBinaryString(tag));
-//			index = test & (L2_SIZE - 1);
-//			tag = test >> (int)(Math.log(L2_SIZE) / Math.log(2));
-//			System.out.format("L2 Index %s and Tag %s\n", Integer.toBinaryString(index), Integer.toBinaryString(tag));	
-//			int recon = tag << (int)(Math.log(L2_SIZE) / Math.log(2));
-//			recon += index;
-//			System.out.format("Address reconstructed %s\n\n", Integer.toBinaryString(recon));			
-//		}		
+		cpu2.start();	
 	}
 
 	/**
@@ -139,51 +111,44 @@ public class Simulator implements Observer {
 	}
 
 	@Override
-	public void update(Observable o, Object arg) {
-//		if (arg == CacheEvent.L1_HIT) {
-//			hitNum++;
-//			totalTime += L1_LATENCY;
-//		}
-//		
-//		if (arg == CacheEvent.L2_HIT) {
-//			hitNum++;
-//			missNum++;
-//			totalTime += L1_LATENCY + L2_LATENCY;
-//		} 
-		
+	public void update(Observable o, Object arg) {		
 		if (arg instanceof MemoryInfo) {
-			//missNum += 2;
-			//totalTime += L1_LATENCY + L2_LATENCY;
 			MemoryInfo m = (MemoryInfo) arg;
 			if (((CPU) o).cpuNumber == 1) {				
 				if(cpu2.snoop(m)) {
 					cpu1.add(cpu2.get(m));
 					//set to shared MESI state
 				} else {
-					//missNum++;
-					//totalTime += L3_LATENCY;
-					int index = m.iAddress & (L3_SIZE - 1);
-					int tag = m.iAddress >> (int)(Math.log(L3_SIZE) / Math.log(2));
-					if (L3.entries[index].tag == tag) {
-						//hitNum++;
-						l3hitNum++;
-					} else {
+					int index = m.iAddress & (L3_SIZE/NUM_OF_WAYS - 1);
+					int tag = m.iAddress >> (int)(Math.log(L3_SIZE/NUM_OF_WAYS) / Math.log(2));
+					boolean found = false;
+					
+					for (int i = 0; i < L3.cacheSize/NUM_OF_WAYS && i + index < L3.cacheSize; i++) {
+						if (L3.entries[index + i].tag == tag) {							
+							l3hitNum++;
+							found = true;
+						} 
+					}
+					if (!found) {
 						l3missNum++;
 						cpu1.add(m.iAddress);
 					}
 				}				
 			} else {
 				if(cpu1.snoop(m)) {
-					//cpu2.add(cpu1.get(m));
+					cpu2.add(cpu1.get(m));
 				} else {
-					//missNum++;
-					//totalTime += L3_LATENCY;
-					int index = m.iAddress & (L3_SIZE - 1);
-					int tag = m.iAddress >> (int)(Math.log(L3_SIZE) / Math.log(2));
-					if (L3.entries[index].tag == tag) {
-						//hitNum++;
-						l3hitNum++;
-					} else {
+					int index = m.iAddress & (L3_SIZE/NUM_OF_WAYS - 1);
+					int tag = m.iAddress >> (int)(Math.log(L3_SIZE/NUM_OF_WAYS) / Math.log(2));
+					boolean found = false;
+					
+					for (int i = 0; i < L3.cacheSize/NUM_OF_WAYS && i + index < L3.cacheSize; i++) {
+						if (L3.entries[index + i].tag == tag) {							
+							l3hitNum++;
+							found = true;
+						} 
+					}
+					if (!found) {
 						l3missNum++;
 						cpu2.add(m.iAddress);
 					}
@@ -192,10 +157,19 @@ public class Simulator implements Observer {
 		}
 		
 		if (arg instanceof Integer) {
-			int index = (int)arg & (L3_SIZE - 1);
-			int tag = (int)arg >> (int)(Math.log(L3_SIZE) / Math.log(2));;
-			//totalTime += L3_LATENCY;
-			L3.insert(index, tag, 'E');
+			boolean placed = false;
+			int index = (int)arg & (L3_SIZE/NUM_OF_WAYS - 1);
+			int tag = (int)arg >> (int)(Math.log(L3_SIZE/NUM_OF_WAYS) / Math.log(2));
+			for (int i = 0; i < L3.cacheSize/NUM_OF_WAYS && i + index < L3.cacheSize; i++) {
+				if(L3.entries[index + i].tag == -1) {
+					L3.insert(index + i, tag, 'E');
+					placed = true;
+				}
+			}
+			
+			if (!placed) {
+				L3.insert(index + r.nextInt(NUM_OF_WAYS), tag, 'E');
+			}
 		}
 		
 		if (arg == CacheEvent.COMPLETE) {
@@ -209,7 +183,6 @@ public class Simulator implements Observer {
 				int misses = l3missNum + cpu1.l1missNum + cpu1.l2missNum + cpu2.l1missNum + cpu2.l2missNum;
 				int cycles = l3missNum * L3_LATENCY + cpu1.l1missNum * L1_LATENCY + cpu1.l2missNum * L2_LATENCY + cpu2.l1missNum * L1_LATENCY + cpu2.l2missNum * L2_LATENCY;
 				System.out.format("Total hits: %d Total Misses: %d Total Cycles: %d", hits, misses, cycles);
-				//System.out.format("%d hits %d misses %d total cycles", hitNum, missNum, totalTime);
 			}
 		}
 	}

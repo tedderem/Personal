@@ -12,5 +12,11 @@ public class MemoryInfo {
 		ioValue = theIOValue;
 		dAddress = theDataAddress;
 	}
+	
+	public MemoryInfo() {
+		iAddress = -1;
+		ioValue = -1;
+		dAddress = -1;
+	}
 
 }
