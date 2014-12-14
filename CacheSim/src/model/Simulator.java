@@ -26,7 +26,7 @@ public class Simulator implements Observer {
 	private final static int L3_LATENCY = 20;
 	private final static int FIRST_MEM_LATENCY = 100;
 	private final static int SECOND_MEM_LATENCY = 250;
-	private final static int NUM_OF_WAYS = 2;
+	private final static int NUM_OF_WAYS = 8;
 	private final static int CPU_TOTAL = 2;
 	/**	String name of the file for memory trace. */
 	private final static String TRACE_FILE = "trace-2k.csv";
@@ -126,9 +126,8 @@ public class Simulator implements Observer {
 			MemoryInfo m = (MemoryInfo) arg;
 			//CPU1 made this call
 			if (((CPU) o).cpuNumber == 1) {				
-				if(cpu2.snoop(m)) {
-					cpu1.add(cpu2.get(m));
-					//set to shared MESI state
+				if(cpu2.snoop(m).iAddress != -1) {
+					cpu1.add(cpu2.snoop(m));
 				} else {
 					int index = m.iAddress & (L3_SIZE/NUM_OF_WAYS - 1);
 					int tag = m.iAddress >> (int)(Math.log(L3_SIZE/NUM_OF_WAYS) / Math.log(2));
@@ -142,12 +141,12 @@ public class Simulator implements Observer {
 					}
 					if (!found) {
 						l3missNum++;
-						cpu1.add(m.iAddress);
+						cpu1.add(m);
 					}
 				}				
 			} else { //CPU 2 made this call
-				if(cpu1.snoop(m)) {
-					cpu2.add(cpu1.get(m));
+				if(cpu1.snoop(m).iAddress != -1) {
+					cpu2.add(cpu1.snoop(m));
 				} else {
 					int index = m.iAddress & (L3_SIZE/NUM_OF_WAYS - 1);
 					int tag = m.iAddress >> (int)(Math.log(L3_SIZE/NUM_OF_WAYS) / Math.log(2));
@@ -161,7 +160,7 @@ public class Simulator implements Observer {
 					}
 					if (!found) {
 						l3missNum++;
-						cpu2.add(m.iAddress);
+						cpu2.add(m);
 					}
 				}
 			}
@@ -177,14 +176,14 @@ public class Simulator implements Observer {
 			//Scan L3 cache within the set to see if there are any available slots
 			for (int i = 0; i < L3.cacheSize/NUM_OF_WAYS && i + index < L3.cacheSize; i++) {
 				if(L3.entries[index + i].tag == -1) {
-					L3.insert(index + i, tag, 'E');
+					L3.insert(new MemoryInfo((Integer)arg, -1, -1), index + i, tag, 'E');
 					//Item was placed in L3
 					placed = true;
 				}
 			}
 			//Item was not placed in an empty slot, something needs to be evicted
 			if (!placed) {
-				L3.insert(index + r.nextInt(NUM_OF_WAYS), tag, 'E');
+				L3.insert(new MemoryInfo((Integer)arg, -1, -1), index + r.nextInt(NUM_OF_WAYS), tag, 'E');
 			}
 		}
 		

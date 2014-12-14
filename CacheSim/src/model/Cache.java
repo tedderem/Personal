@@ -35,8 +35,8 @@ public class Cache {
 	 * @param theTag The tag of the cache entry.
 	 * @param theMESI The MESI state.
 	 */
-	public void insert(final int theIndex, final int theTag, final char theMESI) {
-		entries[theIndex] = new CacheEntry(theMESI, theTag);
+	public void insert(final MemoryInfo mem, final int theIndex, final int theTag, final char theMESI) {
+		entries[theIndex] = new CacheEntry(theMESI, theTag, mem);
 	}
 
 	/**
@@ -48,14 +48,14 @@ public class Cache {
 	public class CacheEntry {
 		char MESIState;
 		int tag;
-		//MemoryInfo data;
+		MemoryInfo data;
 		
 		public CacheEntry() {
-			this(' ', -1);
+			this(' ', -1, new MemoryInfo());
 		}
 		
-		public CacheEntry(final char theMESI, final int theTag) {
-			//data = theData;
+		public CacheEntry(final char theMESI, final int theTag, final MemoryInfo theData) {
+			data = theData;
 			MESIState = theMESI;
 			tag = theTag;
 		}
