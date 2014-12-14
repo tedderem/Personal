@@ -16,10 +16,7 @@ import java.util.Random;
  * @author Erik Tedder
  */
 public class Simulator implements Observer {
-	/** 
-	 * Size of first level memory from 0 to this value. Anything beyond constitutes second
-	 * level memory.
-	 */
+	/* Necessary constants for the CPU states. */
 	private final static int FIRST_MEM_SIZE = 0x800000;
 	private final static int L1_SIZE = 8;
 	private final static int L1_LATENCY = 1;
@@ -29,24 +26,28 @@ public class Simulator implements Observer {
 	private final static int L3_LATENCY = 20;
 	private final static int FIRST_MEM_LATENCY = 100;
 	private final static int SECOND_MEM_LATENCY = 250;
-	private final static int NUM_OF_WAYS = 8;
+	private final static int NUM_OF_WAYS = 2;
 	private final static int CPU_TOTAL = 2;
 	/**	String name of the file for memory trace. */
 	private final static String TRACE_FILE = "trace-2k.csv";
 	
 	/** The shared level 3 cache for the CPUs. */
 	protected Cache L3;
-	
+	/** L3 miss counter. */
 	private int l3missNum;
+	/** L3 hit counter. */
 	private int l3hitNum;
 	
 	/** Counter to denote when the threads are complete. */
 	private int threadsComplete;
 	/** List for the TRACE_FILE. */
 	private ArrayList<MemoryInfo> trace;
+	/** Random number generator for assigning positions at random. */
 	private Random r = new Random();
 	
+	/** Cpu 1. */
 	private CPU cpu1;
+	/** Cpu 2. */
 	private CPU cpu2;
 	
 	/**
@@ -56,11 +57,12 @@ public class Simulator implements Observer {
 		l3missNum = 0;
 		l3hitNum = 0;
 		threadsComplete = 0;		
-		
+		//Construct the L3
 		L3 = new Cache(L3_SIZE, L3_LATENCY, NUM_OF_WAYS);
-		
+		//Initialize the trace array
 		trace = new ArrayList<MemoryInfo>();
 		
+		//Read in the trace file
 		try {
 			BufferedReader br = new BufferedReader(new FileReader(TRACE_FILE));
 			String line = br.readLine();
@@ -93,10 +95,13 @@ public class Simulator implements Observer {
 			System.err.println("ISSUE READING LINE");
 		}
 
+		//Construct the CPUs
 		cpu1 = new CPU(trace, L1_SIZE, L1_LATENCY, L2_SIZE, L2_LATENCY, NUM_OF_WAYS, 1);
 		cpu2 = new CPU(trace, L1_SIZE, L1_LATENCY, L2_SIZE, L2_LATENCY, NUM_OF_WAYS, 2);
+		//Set this simulator to observe them
 		cpu1.addObserver(this);
 		cpu2.addObserver(this);
+		//start both CPUs
 		cpu1.start();
 		cpu2.start();	
 	}
@@ -110,10 +115,16 @@ public class Simulator implements Observer {
 		Simulator s = new Simulator();		
 	}
 
+	/**
+	 * Called when a change has been made within the CPU.
+	 */
 	@Override
 	public void update(Observable o, Object arg) {		
+		//Called when an item is not found within the L1 or L2 caches
 		if (arg instanceof MemoryInfo) {
+			//Take argument passed and cast it to a MemoryInfo object
 			MemoryInfo m = (MemoryInfo) arg;
+			//CPU1 made this call
 			if (((CPU) o).cpuNumber == 1) {				
 				if(cpu2.snoop(m)) {
 					cpu1.add(cpu2.get(m));
@@ -134,7 +145,7 @@ public class Simulator implements Observer {
 						cpu1.add(m.iAddress);
 					}
 				}				
-			} else {
+			} else { //CPU 2 made this call
 				if(cpu1.snoop(m)) {
 					cpu2.add(cpu1.get(m));
 				} else {
@@ -156,27 +167,35 @@ public class Simulator implements Observer {
 			}
 		}
 		
+		//Observed CPU has an item needing to be placed into L3
 		if (arg instanceof Integer) {
+			//boolean flag for denoting item has been placed
 			boolean placed = false;
+			//calculate index and tag for the L3 cache
 			int index = (int)arg & (L3_SIZE/NUM_OF_WAYS - 1);
 			int tag = (int)arg >> (int)(Math.log(L3_SIZE/NUM_OF_WAYS) / Math.log(2));
+			//Scan L3 cache within the set to see if there are any available slots
 			for (int i = 0; i < L3.cacheSize/NUM_OF_WAYS && i + index < L3.cacheSize; i++) {
 				if(L3.entries[index + i].tag == -1) {
 					L3.insert(index + i, tag, 'E');
+					//Item was placed in L3
 					placed = true;
 				}
 			}
-			
+			//Item was not placed in an empty slot, something needs to be evicted
 			if (!placed) {
 				L3.insert(index + r.nextInt(NUM_OF_WAYS), tag, 'E');
 			}
 		}
 		
+		//Threads have completed
 		if (arg == CacheEvent.COMPLETE) {
+			//Running count of how many threads have completed so far
 			if (threadsComplete != CPU_TOTAL) {
 				threadsComplete++;
 			}
 			
+			//When all threads/CPUs have completed their calculations, print out final values.
 			if (threadsComplete == CPU_TOTAL) {
 				System.out.format("\n[L3] Hits: %d Misses: %d\n", l3hitNum, l3missNum);
 				int hits = l3hitNum + cpu1.l1hitNum + cpu1.l2hitNum + cpu2.l1hitNum + cpu2.l2hitNum;
