@@ -106,12 +106,12 @@ public class CPU extends Observable implements Runnable {
 			}
 			
 			//Sleep thread for a second (good for fast processors)
-//			try {
-//				Thread.sleep(1);
-//			} catch (InterruptedException e) {
-//				// TODO Auto-generated catch block
-//				e.printStackTrace();
-//			}
+			try {
+				Thread.sleep(0);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 		//CPU has finished with provided memory trace, output results.
 		System.out.format("\n[CPU %d] Finished\n[L1] Hits: %d Misses: %d\n[L2] Hits: %d "
@@ -148,8 +148,13 @@ public class CPU extends Observable implements Runnable {
 			if (L1i.entries[L1Index + i].tag == L1Tag) {
 				contained = true;
 				snooped = L1i.entries[L1Index + i].data;
+				L1i.entries[L1Index + i].MESIState = 'S';
 				l1hitNum++;
 			}
+		}
+		
+		if (!contained) {
+			l1missNum++;
 		}
 		
 		//see if memory item is in l2 cache
@@ -157,7 +162,7 @@ public class CPU extends Observable implements Runnable {
 			if (L2.entries[L2Index + i].tag == L2Tag) {
 				contained = true;
 				snooped = L2.entries[L2Index + i].data;
-				l1missNum++;
+				//l1missNum++;
 				l2hitNum++;
 			}
 		}
@@ -171,7 +176,7 @@ public class CPU extends Observable implements Runnable {
 	 * 
 	 * @param theMemoryItem
 	 */
-	public void add(final MemoryInfo mem) {
+	public void add(final MemoryInfo mem, final char theState) {
 		int L1Index, L1Tag;
 		//boolean denoting whether item has been placed (for eviction purposes)
 		boolean placed = false;
@@ -183,7 +188,7 @@ public class CPU extends Observable implements Runnable {
 		for (int i = 0; i < L1i.cacheSize/L1i.numOfWays && i + L1Index < L1i.cacheSize; i++) {
 			if (L1i.entries[L1Index + i].tag == -1) {
 				//is an empty spot, insert and denote placed boolean
-				L1i.insert(mem, L1Index + i, L1Tag, 'E');
+				L1i.insert(mem, L1Index + i, L1Tag, theState);
 				placed = true;
 			}
 		}
@@ -192,12 +197,10 @@ public class CPU extends Observable implements Runnable {
 		if (!placed) {
 			//Choose random value within the number of ways
 			int random = r.nextInt(L1i.numOfWays);
-			//Construct the address value for the item being evicted
-//			int oldValue = L1i.entries[(L1Index + random)].tag << (int)(Math.log(L1i.cacheSize/L1i.numOfWays) / Math.log(2));
-//			oldValue = oldValue + L1Index;
+			//MemoryInfo for the item being evicted
 			MemoryInfo oldValue = L1i.entries[(L1Index + random)].data;
 			//Insert item into L1
-			L1i.insert(mem, L1Index + random, L1Tag, 'E');
+			L1i.insert(mem, L1Index + random, L1Tag, theState);
 			//Calculate the L2 index and tag for the evicted item
 			int L2Index = getIndex(oldValue.iAddress, L2);
 			int L2Tag = getTag(oldValue.iAddress, L2);
@@ -206,7 +209,7 @@ public class CPU extends Observable implements Runnable {
 			//Check all of L2 caches (within the necessary range) to check for free spot
 			for (int i = 0; i < L2.cacheSize/L2.numOfWays && i + L2Index < L2.cacheSize; i++) {
 				if (L2.entries[L2Index + i].tag == -1) {
-					L2.insert(oldValue, L2Index + i, L2Tag, 'E');
+					L2.insert(oldValue, L2Index + i, L2Tag, theState);
 					//item placed in L2 cache
 					placed = true;
 				}
@@ -217,11 +220,9 @@ public class CPU extends Observable implements Runnable {
 				random = r.nextInt(L2.numOfWays);
 				MemoryInfo temp = oldValue;
 				//Construct address value of evicted item
-//				oldValue = L2.entries[L2Index + random].tag << (int)(Math.log(L2.cacheSize/L2.numOfWays) / Math.log(2));
-//				oldValue = oldValue + L2Index;
 				oldValue = L2.entries[L2Index + random].data;
 				//Place item evicted from L1 into L2
-				L2.insert(temp, L2Index + random, L2Tag, 'E');
+				L2.insert(temp, L2Index + random, L2Tag, theState);
 				
 				//Let simulator know something needs to be placed into L3.
 				setChanged();

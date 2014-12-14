@@ -26,7 +26,7 @@ public class Simulator implements Observer {
 	private final static int L3_LATENCY = 20;
 	private final static int FIRST_MEM_LATENCY = 100;
 	private final static int SECOND_MEM_LATENCY = 250;
-	private final static int NUM_OF_WAYS = 8;
+	private final static int NUM_OF_WAYS = 2;
 	private final static int CPU_TOTAL = 2;
 	/**	String name of the file for memory trace. */
 	private final static String TRACE_FILE = "trace-2k.csv";
@@ -37,6 +37,9 @@ public class Simulator implements Observer {
 	private int l3missNum;
 	/** L3 hit counter. */
 	private int l3hitNum;
+	
+	/** Counter for memory latency. */
+	private int memCycles;
 	
 	/** Counter to denote when the threads are complete. */
 	private int threadsComplete;
@@ -56,6 +59,7 @@ public class Simulator implements Observer {
 	public Simulator() {
 		l3missNum = 0;
 		l3hitNum = 0;
+		memCycles = 0;
 		threadsComplete = 0;		
 		//Construct the L3
 		L3 = new Cache(L3_SIZE, L3_LATENCY, NUM_OF_WAYS);
@@ -126,8 +130,18 @@ public class Simulator implements Observer {
 			MemoryInfo m = (MemoryInfo) arg;
 			//CPU1 made this call
 			if (((CPU) o).cpuNumber == 1) {				
-				if(cpu2.snoop(m).iAddress != -1) {
-					cpu1.add(cpu2.snoop(m));
+				//trying to do a read
+				if (m.ioValue == 0) {
+					//cpu2 does contain this item
+					if(cpu2.snoop(m).iAddress != -1) {
+						cpu1.add(cpu2.snoop(m), 'S');
+					} else { //cpu2 doesnt have this, fetch from memory
+						if (m.dAddress < FIRST_MEM_SIZE) {
+							memCycles += FIRST_MEM_LATENCY;
+						} else {
+							memCycles += SECOND_MEM_LATENCY;
+						}
+					}				
 				} else {
 					int index = m.iAddress & (L3_SIZE/NUM_OF_WAYS - 1);
 					int tag = m.iAddress >> (int)(Math.log(L3_SIZE/NUM_OF_WAYS) / Math.log(2));
@@ -141,12 +155,22 @@ public class Simulator implements Observer {
 					}
 					if (!found) {
 						l3missNum++;
-						cpu1.add(m);
+						cpu1.add(m, 'E');
 					}
 				}				
 			} else { //CPU 2 made this call
-				if(cpu1.snoop(m).iAddress != -1) {
-					cpu2.add(cpu1.snoop(m));
+				//trying to do a read
+				if (m.ioValue == 0) {
+					//cpu1 does contain this item
+					if(cpu1.snoop(m).iAddress != -1) {
+						cpu2.add(cpu1.snoop(m), 'S');
+					} else {
+						if (m.dAddress < FIRST_MEM_SIZE) {
+							memCycles += FIRST_MEM_LATENCY;
+						} else {
+							memCycles += SECOND_MEM_LATENCY;
+						}
+					}
 				} else {
 					int index = m.iAddress & (L3_SIZE/NUM_OF_WAYS - 1);
 					int tag = m.iAddress >> (int)(Math.log(L3_SIZE/NUM_OF_WAYS) / Math.log(2));
@@ -160,7 +184,7 @@ public class Simulator implements Observer {
 					}
 					if (!found) {
 						l3missNum++;
-						cpu2.add(m);
+						cpu2.add(m, 'E');
 					}
 				}
 			}
@@ -200,7 +224,7 @@ public class Simulator implements Observer {
 				int hits = l3hitNum + cpu1.l1hitNum + cpu1.l2hitNum + cpu2.l1hitNum + cpu2.l2hitNum;
 				int misses = l3missNum + cpu1.l1missNum + cpu1.l2missNum + cpu2.l1missNum + cpu2.l2missNum;
 				int cycles = l3missNum * L3_LATENCY + cpu1.l1missNum * L1_LATENCY + cpu1.l2missNum * L2_LATENCY + cpu2.l1missNum * L1_LATENCY + cpu2.l2missNum * L2_LATENCY;
-				System.out.format("Total hits: %d Total Misses: %d Total Cycles: %d", hits, misses, cycles);
+				System.out.format("Total hits: %d Total Misses: %d Total Cycles: %d", hits, misses, cycles + memCycles);
 			}
 		}
 	}
