@@ -357,7 +357,7 @@ public class CPU extends Observable implements Runnable {
 			if (L2.entries[dataIndex + i].tag == dataTag) {
 				//notify simulator of a write and state change
 				setChanged();
-				notifyObservers(new CacheModification(L1d.entries[dataIndex + i].MESIState, 'I', mem));
+				notifyObservers(new CacheModification(L2.entries[dataIndex + i].MESIState, 'I', mem));
 				//set entry as modified
 				L2.entries[dataIndex + i].MESIState = 'I';
 			} 

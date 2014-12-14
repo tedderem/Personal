@@ -18,15 +18,15 @@ import java.util.Random;
 public class Simulator implements Observer {
 	/* Necessary constants for the CPU states. */
 	private final static int FIRST_MEM_SIZE = 0x800000;
-	private final static int L1_SIZE = 8;
-	private final static int L1_LATENCY = 1;
-	private final static int L2_SIZE = 32;
-	private final static int L2_LATENCY = 10;
-	private final static int L3_SIZE = 128;
-	private final static int L3_LATENCY = 20;
-	private final static int FIRST_MEM_LATENCY = 100;
-	private final static int SECOND_MEM_LATENCY = 250;
-	private final static int NUM_OF_WAYS = 4;
+	private final static int L1_SIZE = 16;
+	private final static int L1_LATENCY = 2;
+	private final static int L2_SIZE = 64;
+	private final static int L2_LATENCY = 12;
+	private final static int L3_SIZE = 256;
+	private final static int L3_LATENCY = 25;
+	private final static int FIRST_MEM_LATENCY = 120;
+	private final static int SECOND_MEM_LATENCY = 400;
+	private final static int NUM_OF_WAYS = 8;
 	private final static int CPU_TOTAL = 2;
 	private final static int WRITE_BACK = 1;
 	/**	String name of the file for memory trace. */
@@ -275,14 +275,14 @@ public class Simulator implements Observer {
 			
 			//When all threads/CPUs have completed their calculations, print out final values.
 			if (threadsComplete == CPU_TOTAL) {
-				System.out.format("\n[L3] Hits: %d Misses: %d\n", l3hitNum, l3missNum);
+				System.out.format("\n[L3] Hits: %d Misses: %d\n\n", l3hitNum, l3missNum);
 				int hits = l3hitNum + cpu1.l1hitNum + cpu1.l2hitNum + cpu2.l1hitNum + cpu2.l2hitNum;
 				int misses = l3missNum + cpu1.l1missNum + cpu1.l2missNum + cpu2.l1missNum + cpu2.l2missNum;
 				int cycles = l3missNum * L3_LATENCY + cpu1.l1missNum * L1_LATENCY + cpu1.l2missNum * L2_LATENCY + cpu2.l1missNum * L1_LATENCY + cpu2.l2missNum * L2_LATENCY;
 				System.out.format("Total hits: %d Total Misses: %d Total Cycles: %d\n", hits, misses, cycles + memCycles);
 				float hitP = ((float)hits/(hits+misses)) * 100;
 				float missP = ((float)misses/(hits+misses)) * 100;
-				System.out.format("Hit Percentage : %.2f%% Miss Percentage : %.2f%%\n\n", hitP, missP);
+				System.out.format("Hit Percentage: %.2f%% Miss Percentage: %.2f%%\n\n", hitP, missP);
 				System.out.format("MESI STATE CHANGES\nE to S %d\nE to I %d\nE to M %d\n", mesi[1][2], mesi[1][3], mesi[1][0]);
 				System.out.format("S to I %d\nS to M %d", mesi[2][3], mesi[2][0]);
 			}
