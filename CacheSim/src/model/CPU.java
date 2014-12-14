@@ -111,7 +111,7 @@ public class CPU extends Observable implements Runnable {
 						l2hitNum++;
 						//notify simulator of a write and state change
 						setChanged();
-						notifyObservers(new CacheModification(L1d.entries[dataIndex + i].MESIState, 'M', m));
+						notifyObservers(new CacheModification(L2.entries[dataIndex + i].MESIState, 'M', m));
 						//set entry as modified
 						L2.entries[dataIndex + i].MESIState = 'M';
 					} 
