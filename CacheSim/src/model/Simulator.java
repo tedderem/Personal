@@ -30,7 +30,7 @@ public class Simulator implements Observer {
 	private final static int CPU_TOTAL = 2;
 	private final static int WRITE_BACK = 1;
 	/**	String name of the file for memory trace. */
-	private final static String TRACE_FILE = "trace-2k.csv";
+	private final static String TRACE_FILE = "trace-5k.csv";
 	
 	/** The shared level 3 cache for the CPUs. */
 	protected Cache L3;
@@ -38,6 +38,14 @@ public class Simulator implements Observer {
 	private int l3missNum;
 	/** L3 hit counter. */
 	private int l3hitNum;
+	
+	/**
+	 * Matrix to represent the changes of MESI states. Will have 0 be M, 1 is Exclusive, 2 is
+	 * Shared, and 4 is Invalid. Each row is the starting value and the column is the ending 
+	 * value. ie mesiTransitions[1][2] value is the number of times going from Exclusive to
+	 * Shared.
+	 */
+	private int[][] mesi = new int[4][4];
 	
 	/** Counter for memory latency. */
 	private int memCycles;
@@ -138,6 +146,8 @@ public class Simulator implements Observer {
 					//cpu2 does contain this item
 					if(cpu2.snoop(m).iAddress != -1) {
 						cpu1.add(cpu2.snoop(m), 'S');
+						//increment transition counter by 2 since snoop sets value to be S as well
+						mesi[1][2] = mesi[1][2] + 2;
 					} else { //cpu2 doesnt have this, fetch from memory
 						if (m.dAddress < FIRST_MEM_SIZE) {
 							memCycles += FIRST_MEM_LATENCY;
@@ -170,6 +180,8 @@ public class Simulator implements Observer {
 					//cpu1 does contain this item
 					if(cpu1.snoop(m).iAddress != -1) {
 						cpu2.add(cpu1.snoop(m), 'S');
+						//increment transition counter by 2 since snoop sets value to be S as well
+						mesi[1][2] = mesi[1][2] + 2;
 					} else {
 						if (m.dAddress < FIRST_MEM_SIZE) {
 							memCycles += FIRST_MEM_LATENCY;
@@ -225,6 +237,35 @@ public class Simulator implements Observer {
 			memCycles += SECOND_MEM_LATENCY;
 		}
 		
+		//a CPU has modified its data
+		if (arg instanceof CacheModification) {
+			CacheModification cm = (CacheModification)arg;
+			//update mesi trackers
+			if (cm.startState == 'E') {
+				if (cm.endState == 'M') {
+					mesi[1][0] = mesi[1][0] + 1;
+					if (((CPU)o).cpuNumber == 1) {
+						cpu2.invalidateData(cm.mem);
+					} else {
+						cpu1.invalidateData(cm.mem);
+					}
+				} else if (cm.endState == 'I') {
+					mesi[1][3] = mesi[1][3] + 1;
+				}
+			} else if (cm.startState == 'S') {
+				if (cm.endState == 'M') {
+					mesi[2][0] = mesi[2][0] + 1;
+					if (((CPU)o).cpuNumber == 1) {
+						cpu2.invalidateData(cm.mem);
+					} else {
+						cpu1.invalidateData(cm.mem);
+					}
+				} else if (cm.endState == 'I') {
+					mesi[2][3] = mesi[2][3] + 1;
+				}
+			}
+		}
+		
 		//Threads have completed
 		if (arg == CacheEvent.COMPLETE) {
 			//Running count of how many threads have completed so far
@@ -241,7 +282,9 @@ public class Simulator implements Observer {
 				System.out.format("Total hits: %d Total Misses: %d Total Cycles: %d\n", hits, misses, cycles + memCycles);
 				float hitP = ((float)hits/(hits+misses)) * 100;
 				float missP = ((float)misses/(hits+misses)) * 100;
-				System.out.format("Hit Percentage : %.2f%% Miss Percentage : %.2f%%", hitP, missP);
+				System.out.format("Hit Percentage : %.2f%% Miss Percentage : %.2f%%\n\n", hitP, missP);
+				System.out.format("MESI STATE CHANGES\nE to S %d\nE to I %d\nE to M %d\n", mesi[1][2], mesi[1][3], mesi[1][0]);
+				System.out.format("S to I %d\nS to M %d", mesi[2][3], mesi[2][0]);
 			}
 		}
 	}

@@ -79,23 +79,60 @@ public class CPU extends Observable implements Runnable {
 			L2Index = getIndex(m.iAddress, L2);
 			L2Tag = getTag(m.iAddress, L2);
 			
-			//Check if item is in the L1 cache (iterates through checking)
-			for (int i = 0; i < L1i.numOfWays && !located && i + L1Index < L1i.cacheSize; i++) {
-				if (L1i.entries[L1Index + i].tag == L1Tag) {
-					located = true;
-					l1hitNum++;
-				} 
-			}
-			
-			//Check if the item is in the L2 cache (iterates through checking)
-			for (int i = 0; i < L2.numOfWays && !located && i + L2Index < L2.cacheSize; i++) {
-				if (L2.entries[L2Index + i].tag == L2Tag) {
-					located = true;
-					l1missNum++;
-					l2hitNum++;
+			if (m.ioValue == 1) { //is a data write
+				int dataIndex = getIndex(m.dAddress, L1d);
+				int dataTag = getTag(m.dAddress, L1d);
+				
+				//denote an immediate write to memory if write-through
+				//(just needs to happen within same span of placing to cache)
+				if (writeBack == 0) {
+					setChanged();
+					notifyObservers(CacheEvent.DATA_WRITE);
+				}
+				
+				//Check if item is in the L1 cache (iterates through checking)
+				for (int i = 0; i < L1d.numOfWays && !located && i + dataIndex < L1d.cacheSize; i++) {
+					if (L1d.entries[dataIndex + i].tag == dataTag) {
+						located = true;
+						l1hitNum++;
+						//notify simulator of a write and state change
+						setChanged();
+						notifyObservers(new CacheModification(L1d.entries[dataIndex + i].MESIState, 'M', m));
+						//set entry as modified
+						L1d.entries[dataIndex + i].MESIState = 'M';
+					} 
+				}
+				dataIndex = getIndex(m.dAddress, L2);
+				dataTag = getTag(m.dAddress, L2);
+				for (int i = 0; i < L2.numOfWays && !located && i + dataIndex < L2.cacheSize; i++) {
+					if (L2.entries[dataIndex + i].tag == dataTag) {
+						located = true;
+						l1missNum++;
+						l2hitNum++;
+						//notify simulator of a write and state change
+						setChanged();
+						notifyObservers(new CacheModification(L1d.entries[dataIndex + i].MESIState, 'M', m));
+						//set entry as modified
+						L2.entries[dataIndex + i].MESIState = 'M';
+					} 
+				}
+			} else {
+				//Check if item is in the L1 cache (iterates through checking)
+				for (int i = 0; i < L1i.numOfWays && !located && i + L1Index < L1i.cacheSize; i++) {
+					if (L1i.entries[L1Index + i].tag == L1Tag) {
+						located = true;
+						l1hitNum++;
+					} 
+				}
+				//Check if the item is in the L2 cache (iterates through checking)
+				for (int i = 0; i < L2.numOfWays && !located && i + L2Index < L2.cacheSize; i++) {
+					if (L2.entries[L2Index + i].tag == L2Tag) {
+						located = true;
+						l1missNum++;
+						l2hitNum++;
+					}
 				}
 			}
-			
 			//Item has not be located in L1 or L2
 			if (!located) {
 				//L1 and L2 miss
@@ -301,7 +338,30 @@ public class CPU extends Observable implements Runnable {
 	 * @param mem The item that is being written in a different CPU.
 	 */
 	public void invalidateData(final MemoryInfo mem) {
+		int dataIndex = getIndex(mem.dAddress, L1d);
+		int dataTag = getTag(mem.dAddress, L1d);
 		
+		//Check if item is in the L1 cache (iterates through checking)
+		for (int i = 0; i < L1d.numOfWays && i + dataIndex < L1d.cacheSize; i++) {
+			if (L1d.entries[dataIndex + i].tag == dataTag) {
+				//notify simulator of a write and state change
+				setChanged();
+				notifyObservers(new CacheModification(L1d.entries[dataIndex + i].MESIState, 'I', mem));
+				//set entry as modified
+				L1d.entries[dataIndex + i].MESIState = 'I';
+			} 
+		}
+		dataIndex = getIndex(mem.dAddress, L2);
+		dataTag = getTag(mem.dAddress, L2);
+		for (int i = 0; i < L2.numOfWays && i + dataIndex < L2.cacheSize; i++) {
+			if (L2.entries[dataIndex + i].tag == dataTag) {
+				//notify simulator of a write and state change
+				setChanged();
+				notifyObservers(new CacheModification(L1d.entries[dataIndex + i].MESIState, 'I', mem));
+				//set entry as modified
+				L2.entries[dataIndex + i].MESIState = 'I';
+			} 
+		}
 	}
 	
 	/**
