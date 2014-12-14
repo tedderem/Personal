@@ -7,7 +7,7 @@ package model;
  * @author Erik Tedder
  */
 public enum CacheEvent {	
-	L1_HIT,
-	L2_HIT,
+	DATA_WRITE,
+	MODIFIED,
 	COMPLETE;
 }

@@ -26,8 +26,9 @@ public class Simulator implements Observer {
 	private final static int L3_LATENCY = 20;
 	private final static int FIRST_MEM_LATENCY = 100;
 	private final static int SECOND_MEM_LATENCY = 250;
-	private final static int NUM_OF_WAYS = 2;
+	private final static int NUM_OF_WAYS = 4;
 	private final static int CPU_TOTAL = 2;
+	private final static int WRITE_BACK = 1;
 	/**	String name of the file for memory trace. */
 	private final static String TRACE_FILE = "trace-2k.csv";
 	
@@ -70,23 +71,25 @@ public class Simulator implements Observer {
 		try {
 			BufferedReader br = new BufferedReader(new FileReader(TRACE_FILE));
 			String line = br.readLine();
-						
+			//read in each line and tokenize			
 			while (line != null) {
 				String[] tokens = line.split(",", -1);
 				
 				int add, io, data;				
 				
 				add = Integer.parseInt(tokens[0]);
+				
 				if (tokens[1].equals("")) {
 					io = -1;
 				} else {
 					io = Integer.parseInt(tokens[1]);
 				}
+				
 				if (tokens[2].equals("")) {
 					data = -1;
 				} else {
 					data = Integer.parseInt(tokens[2]);
-				}				
+				}						
 				
 				trace.add(new MemoryInfo(add, io, data));
 				
@@ -97,11 +100,12 @@ public class Simulator implements Observer {
 			System.err.println("ERROR READING FILE");
 		} catch (IOException e) {
 			System.err.println("ISSUE READING LINE");
-		}
-
+		}	
+	
+		
 		//Construct the CPUs
-		cpu1 = new CPU(trace, L1_SIZE, L1_LATENCY, L2_SIZE, L2_LATENCY, NUM_OF_WAYS, 1);
-		cpu2 = new CPU(trace, L1_SIZE, L1_LATENCY, L2_SIZE, L2_LATENCY, NUM_OF_WAYS, 2);
+		cpu1 = new CPU(trace, L1_SIZE, L1_LATENCY, L2_SIZE, L2_LATENCY, NUM_OF_WAYS, WRITE_BACK, 1);
+		cpu2 = new CPU(trace, L1_SIZE, L1_LATENCY, L2_SIZE, L2_LATENCY, NUM_OF_WAYS, WRITE_BACK, 2);
 		//Set this simulator to observe them
 		cpu1.addObserver(this);
 		cpu2.addObserver(this);
@@ -130,8 +134,7 @@ public class Simulator implements Observer {
 			MemoryInfo m = (MemoryInfo) arg;
 			//CPU1 made this call
 			if (((CPU) o).cpuNumber == 1) {				
-				//trying to do a read
-				if (m.ioValue == 0) {
+				if (m.ioValue == 0) { //read instruction
 					//cpu2 does contain this item
 					if(cpu2.snoop(m).iAddress != -1) {
 						cpu1.add(cpu2.snoop(m), 'S');
@@ -141,18 +144,21 @@ public class Simulator implements Observer {
 						} else {
 							memCycles += SECOND_MEM_LATENCY;
 						}
+						//add into CPU1's L1d
+						cpu1.add(m, 'E');
 					}				
-				} else {
+				} else { //not a read instruction
 					int index = m.iAddress & (L3_SIZE/NUM_OF_WAYS - 1);
 					int tag = m.iAddress >> (int)(Math.log(L3_SIZE/NUM_OF_WAYS) / Math.log(2));
 					boolean found = false;
-					
-					for (int i = 0; i < L3.cacheSize/NUM_OF_WAYS && i + index < L3.cacheSize; i++) {
+					//look through L3 set for item
+					for (int i = 0; i < NUM_OF_WAYS && i + index < L3.cacheSize; i++) {
 						if (L3.entries[index + i].tag == tag) {							
 							l3hitNum++;
 							found = true;
 						} 
 					}
+					//not found in L3, denote a L3 miss and make cpu1 add to its L1
 					if (!found) {
 						l3missNum++;
 						cpu1.add(m, 'E');
@@ -170,18 +176,21 @@ public class Simulator implements Observer {
 						} else {
 							memCycles += SECOND_MEM_LATENCY;
 						}
+						//add into CPU2's L1d
+						cpu2.add(m, 'E');
 					}
-				} else {
+				} else { //not a read instruction
 					int index = m.iAddress & (L3_SIZE/NUM_OF_WAYS - 1);
 					int tag = m.iAddress >> (int)(Math.log(L3_SIZE/NUM_OF_WAYS) / Math.log(2));
 					boolean found = false;
-					
-					for (int i = 0; i < L3.cacheSize/NUM_OF_WAYS && i + index < L3.cacheSize; i++) {
+					//Look in L3 set to see if it is contained
+					for (int i = 0; i < NUM_OF_WAYS && i + index < L3.cacheSize; i++) {
 						if (L3.entries[index + i].tag == tag) {							
 							l3hitNum++;
 							found = true;
 						} 
 					}
+					//Not found in L3. Increment miss counter and make cpu2 insert into L1
 					if (!found) {
 						l3missNum++;
 						cpu2.add(m, 'E');
@@ -198,7 +207,7 @@ public class Simulator implements Observer {
 			int index = (int)arg & (L3_SIZE/NUM_OF_WAYS - 1);
 			int tag = (int)arg >> (int)(Math.log(L3_SIZE/NUM_OF_WAYS) / Math.log(2));
 			//Scan L3 cache within the set to see if there are any available slots
-			for (int i = 0; i < L3.cacheSize/NUM_OF_WAYS && i + index < L3.cacheSize; i++) {
+			for (int i = 0; i < NUM_OF_WAYS && i + index < L3.cacheSize; i++) {
 				if(L3.entries[index + i].tag == -1) {
 					L3.insert(new MemoryInfo((Integer)arg, -1, -1), index + i, tag, 'E');
 					//Item was placed in L3
@@ -209,6 +218,11 @@ public class Simulator implements Observer {
 			if (!placed) {
 				L3.insert(new MemoryInfo((Integer)arg, -1, -1), index + r.nextInt(NUM_OF_WAYS), tag, 'E');
 			}
+		}
+		
+		//a CPU has done a data-write call
+		if (arg == CacheEvent.DATA_WRITE) {
+			memCycles += SECOND_MEM_LATENCY;
 		}
 		
 		//Threads have completed
@@ -224,7 +238,10 @@ public class Simulator implements Observer {
 				int hits = l3hitNum + cpu1.l1hitNum + cpu1.l2hitNum + cpu2.l1hitNum + cpu2.l2hitNum;
 				int misses = l3missNum + cpu1.l1missNum + cpu1.l2missNum + cpu2.l1missNum + cpu2.l2missNum;
 				int cycles = l3missNum * L3_LATENCY + cpu1.l1missNum * L1_LATENCY + cpu1.l2missNum * L2_LATENCY + cpu2.l1missNum * L1_LATENCY + cpu2.l2missNum * L2_LATENCY;
-				System.out.format("Total hits: %d Total Misses: %d Total Cycles: %d", hits, misses, cycles + memCycles);
+				System.out.format("Total hits: %d Total Misses: %d Total Cycles: %d\n", hits, misses, cycles + memCycles);
+				float hitP = ((float)hits/(hits+misses)) * 100;
+				float missP = ((float)misses/(hits+misses)) * 100;
+				System.out.format("Hit Percentage : %.2f%% Miss Percentage : %.2f%%", hitP, missP);
 			}
 		}
 	}
